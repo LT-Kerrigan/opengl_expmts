@@ -4,6 +4,9 @@
 // trinity college dublin, ireland
 //
 
+// TODO: check this out for writing to cubes with a geom shader:
+// http://stackoverflow.com/questions/462721/rendering-to-cube-map
+
 #include "apg_maths.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -56,6 +59,7 @@ int main () {
 		// ----
 		glGenTextures (1, &depth_tex);
 		glActiveTexture (GL_TEXTURE0);
+		/*
 		glBindTexture (GL_TEXTURE_2D, depth_tex);
 		glTexImage2D (GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, g_shad_res, g_shad_res,
 			0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
@@ -66,6 +70,20 @@ int main () {
 		// attach depth texture to framebuffer
 		glFramebufferTexture2D (GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
 			depth_tex, 0);
+		*/
+		glBindTexture (GL_TEXTURE_CUBE_MAP, depth_tex);
+		glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+		glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		for (int i = 0; i < 6; i++) {
+			glTexImage2D (GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
+				g_shad_res, g_shad_res, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+				GL_TEXTURE_CUBE_MAP_NEGATIVE_X + i, depth_tex, 0);
+		}
+		
 		// ----
 		GLenum draw_bufs[] = { GL_NONE };
 		glDrawBuffers (1, draw_bufs);
@@ -340,7 +358,8 @@ int main () {
 		glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
 		glActiveTexture (GL_TEXTURE0);
-		glBindTexture (GL_TEXTURE_2D, depth_tex);
+		//glBindTexture (GL_TEXTURE_2D, depth_tex);
+		glBindTexture (GL_TEXTURE_CUBE_MAP, depth_tex);
 		
 		glUseProgram (after_sp);
 		glBindVertexArray (vao);
