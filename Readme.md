@@ -11,6 +11,8 @@ and volatile software.
 | 001     | cube_map_depth    | depth writing to cube maps for omni-direc. shadows    | started...  |
 | 002     | bezier_curve      | demo from splines and curves lecture last year        | working     |
 | 003     | cube              | spinning cube from .obj as starting point project     | working     |
+| 004     | outlines          | outline rendering prototype                           | needs maint |
+| 005     | outlines_post     | post-processing outline rendering prototype           | needs maint |
 
 ## To Do
 
