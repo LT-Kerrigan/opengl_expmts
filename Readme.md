@@ -13,7 +13,7 @@ and volatile software.
 | 003     | cube              | spinning cube from .obj as starting point project     | working     |
 | 004     | outlines          | outline rendering prototype                           | needs maint |
 | 005     | outlines_post     | post-processing outline rendering prototype           | needs maint |
-| 006     | raytrace_cs       | path tracer based on compute shaders                  | needs maint |
+| 006     | raytrace_cs       | path tracer based on compute shaders                  | working     |
 | 007     | tiny_font         | minimal-resolution pixel font rendering               | working     |
 | 008     | viewports         | making sure I could do one of the assignments         | working     |
 | 009     | water_shader      | prototype wave-based vertex animation                 | needs maint |
