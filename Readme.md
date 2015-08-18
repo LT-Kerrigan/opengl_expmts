@@ -1,5 +1,10 @@
 #opengl experiments / demos
 
+A repository to put play-around ideas (good and bad), semi-finished projects,
+and volatile software.
+
+## Contents
+
 | numerus | titulus           | descriptio                                            | status      |
 |---------|-------------------|-------------------------------------------------------|-------------|
 | 000     | video_modus       | find and list all video modes on troublesome hardware | working     |
