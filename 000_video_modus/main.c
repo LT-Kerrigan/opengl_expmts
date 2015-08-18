@@ -1,3 +1,9 @@
+//
+// video modes test
+// first version: anton gerdelan <gerdela@scss.tcd.ie> 18 august 2015
+// trinity college dublin, ireland
+//
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <stdio.h>

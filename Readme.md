@@ -3,7 +3,7 @@
 | numerus | titulus           | descriptio                                            | status      |
 |---------|-------------------|-------------------------------------------------------|-------------|
 | 000     | video_modus       | find and list all video modes on troublesome hardware | working     |
-| 001     |                   |                                                       | not started |
+| 001     | cube_map_depth    | depth writing to cube maps for omni-direc. shadows    | not started |
 | 002     |                   |                                                       | not started |
 
 ## To Do
