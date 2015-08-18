@@ -2,7 +2,7 @@
 
 | numerus | titulus           | descriptio                                            | status      |
 |---------|-------------------|-------------------------------------------------------|-------------|
-| 000     | glfw_video_modus  | find and list all video modes on troublesome hardware | working     |
+| 000     | video_modus       | find and list all video modes on troublesome hardware | working     |
 | 001     |                   |                                                       | not started |
 | 002     |                   |                                                       | not started |
 
