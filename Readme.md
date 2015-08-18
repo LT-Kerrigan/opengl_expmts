@@ -15,6 +15,7 @@ and volatile software.
 | 005     | outlines_post     | post-processing outline rendering prototype           | needs maint |
 | 006     | raytrace_cs       | path tracer based on compute shaders                  | needs maint |
 | 007     | tiny_font         | minimal-resolution pixel font rendering               | working     |
+| 008     | viewports         | making sure I could do one of the assignments         | working     |
 
 ## To Do
 
