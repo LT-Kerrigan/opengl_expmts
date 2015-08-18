@@ -45,7 +45,14 @@ int main () {
 	printf ("Renderer: %s\n", renderer);
 	printf ("OpenGL version supported %s\n", version);
 
+	// set up framebuffer
+	{
 	
+	
+	}
+
+
+	// set up basic scene
 	{
 	
 	
@@ -55,6 +62,17 @@ int main () {
 	
 	}
 	
+	// set up basic and shadow-casting cameras
+	{
+	
+	
+	
+	}
+	
+	// set up shaders
+	{
+	
+	}
 
 	printf ("shutdown\n");
 	glfwTerminate();
