@@ -16,7 +16,7 @@ and volatile software.
 | 006     | raytrace_cs         | path tracer based on compute shaders                  | working     |
 | 007     | tiny_font           | minimal-resolution pixel font rendering               | working     |
 | 008     | viewports           | making sure I could do one of the assignments         | working     |
-| 009     | water_shader        | prototype wave-based vertex animation                 | needs maint |
+| 009     | water_shader        | prototype wave-based vertex animation                 | working |
 | 010     | compressed_textures | demo of various texture compression options           | working    |
 
 ## To Do
