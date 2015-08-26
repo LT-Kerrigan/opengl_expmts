@@ -17,7 +17,7 @@ and volatile software.
 | 007     | tiny_font           | minimal-resolution pixel font rendering               | working     |
 | 008     | viewports           | making sure I could do one of the assignments         | working     |
 | 009     | water_shader        | prototype wave-based vertex animation                 | needs maint |
-| 010     | compressed_textures | demo of various texture compression options           | proposed    |
+| 010     | compressed_textures | demo of various texture compression options           | working    |
 
 ## To Do
 
