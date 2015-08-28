@@ -18,6 +18,7 @@ and volatile software.
 | 008     | viewports           | making sure I could do one of the assignments         | working     |
 | 009     | water_shader        | prototype wave-based vertex animation                 | working |
 | 010     | compressed_textures | demo of various texture compression options           | working    |
+| 011     | stencils | playing around with stencil tests           | proposed    |
 
 ## To Do
 
