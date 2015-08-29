@@ -23,4 +23,3 @@ and volatile software.
 ## To Do
 
 * stuff from old GL folder
-* try demo 010 on mac

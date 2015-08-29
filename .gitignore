@@ -12,3 +12,6 @@
 /002_bezier_curve/test
 /001_cube_map_depth/test
 /000_video_modus/test
+010_compressed_textures/test.dSYM/Contents/Info.plist
+010_compressed_textures/test.dSYM/Contents/Resources/DWARF/test
+test
