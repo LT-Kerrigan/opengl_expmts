@@ -31,7 +31,7 @@ the implementation does -- popular advice says don't ever use it
 #include <stdio.h>
 #include <stdbool.h>
 
-#define IMG_FILE "interior_cover.jpg"
+#define IMG_FILE "floor_mustard_dm.png" //"interior_cover.jpg"
 
 int main () {
 	printf ("texture compression experiment\n");
@@ -177,7 +177,7 @@ int main () {
 	glEnableVertexAttribArray (0);
 
 	const char* vs_str =
-	"#version 430\n"
+	"#version 410\n"
 	"in vec2 vp;"
 	"out vec2 st;"
 	"void main () {"
@@ -185,7 +185,7 @@ int main () {
 	"  gl_Position = vec4 (vp, 0.0, 1.0);"
 	"}";
 	const char* fs_str =
-	"#version 430\n"
+	"#version 410\n"
 	"in vec2 st;"
 	"uniform sampler2D tex;"
 	"out vec4 frag_colour;"
