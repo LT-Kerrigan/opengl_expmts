@@ -1,27 +1,23 @@
 /*
-S3 Texture Compression experiment
+stencil test play-around
 
---there is a generic opengl compressed texture format but it's not clear what
-the implementation does -- popular advice says don't ever use it
+-- stencil test is performed AFTER frag shader
+-- fragment's STENCIL VALUE used in test vs current value in STENCIL BUFFER
+-- frag culled on test fail
 
---exposed by EXT_texture_compression_s3tc (99% supported)
---3 forms of S3TC
---less compressive than PNG and JPEG
---but designed for use in hardware
---S3TC will independently decompress specific regions within image
---schemes named after D3D formats:
-----DXT1, DXT3, DXT5
+* glEnable (GL_STENCIL_TEST)
+* add stencil buffer to fb
+* sb is an image using stencil format
+* for use fb attach buffer to GL_STENCIL_ATTACHMENT
+* specify bit-depth of stencil
+* each fragment has a uint stencil value
+* usually set fragment values per-draw call in C
+* GL_STENCIL_BUFFER_BIT to glClear
+* set stencil is 2-sided for triangles front/back/frontandback
+* glStencilFuncSeparate to set the test used or glStencilOp
 
---DXT1 is RGB with 6:1 compression
-----GL_COMPRESSED_RGB_S3TC_DXT1_EXT as internalFormat of image
-----optional 1-bit alpha
---DXT3 is RGBA with 4:1 compression
-----GL_COMPRESSED_RGBA_S3TC_DXT3_EXT
---DXT5 is RGBA with 4:1 compression
-----GL_COMPRESSED_RGBA_S3TC_DXT5_EXT
+* -- glStencilMask() defines stencil values before drawing
 
---S3TC can be combined with sRGB colour space
-----EXT_texture_sRGB and various additional internal colour formats
 */
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -207,8 +203,22 @@ int main () {
 	int tex_mode = 0;
 	glBindTexture (GL_TEXTURE_2D, tex);
 	printf ("RGBA\n");
+	
+	glEnable (GL_STENCIL_TEST);
+	
+	glStencilFunc (GL_ALWAYS, 1, 0xFF);
+	// never, less, lequal, greater, gequal, equal, notequal, always
+	//glStencilFuncSeparate (GL_FRONT_AND_BACK, GL_LESS);
+	glStencilOp (
+		GL_KEEP, // keep means don't modify the framebuffer if stencil test fails
+		GL_KEEP, // don't modify buffer if stencil passes but depth test fails
+		GL_REPLACE // if stencil and depth test both pass then write the new frag
+	);
+	glStencilMask (0xFF);
+	
 	while (!glfwWindowShouldClose (window)) {
-		glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT |
+			GL_STENCIL_BUFFER_BIT);
 		glUseProgram (sp);
 		glBindVertexArray (vao);
 		glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
