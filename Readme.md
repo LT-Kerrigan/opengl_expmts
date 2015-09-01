@@ -21,6 +21,7 @@ and volatile software.
 | 011     | stencils | playing around with stencil tests           | proposed    |
 | 012     | gl3w | alternative to GLEW           | working    |
 | 013     | mirror_plane_fb | simple mirror using previous frame's rendering flipped | proposed    |
+| 014     | hdr, bloom | high-dynamic range rendering with bloom shader | proposed    |
 
 ## To Do
 
