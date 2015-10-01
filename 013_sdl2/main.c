@@ -1,24 +1,15 @@
-//include <SDL2/SDL_mixer.h>
 #include <GL/glew.h>
 // SDL's own instructions were wrong about this
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <stdint.h>
-typedef unsigned char uchar;
-typedef unsigned char ubyte;
-typedef int32_t int32;
-typedef uint32_t uint32;
 
 SDL_Window* window = NULL;
 
 void atexit_shutdown () {
-  //Mix_CloseAudio();
-
   printf ("stopping SDL2...\n");
-  // Close and destroy the window
   SDL_DestroyWindow (window);
-  // shuts down all SDL systems
+  // shuts down all SDL systems (but not window apparently)
   SDL_Quit ();
 }
 
@@ -203,13 +194,15 @@ int main () {
     }
   }
 
-  {
+  { // drawing 'loop'
     glViewport (0, 0, 1024, 768);
     glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     glUseProgram (sp);
 		glBindVertexArray (vao);
     glDisable (GL_CULL_FACE);
     glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+
     SDL_GL_SwapWindow (window);
     SDL_Delay (3000);  // Pause execution for 3000 milliseconds, for example
   }
