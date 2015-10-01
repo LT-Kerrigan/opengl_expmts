@@ -68,7 +68,7 @@ bool compile_shader (const char* file_name, GLuint* shader, GLenum type) {
     }
   }
 
-  free ((void*)str);
+  free (str);
   return true;
 }
 
