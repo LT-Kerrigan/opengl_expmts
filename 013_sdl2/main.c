@@ -1,8 +1,14 @@
 //include <SDL2/SDL_mixer.h>
-#include <stdio.h>
 #include <GL/glew.h>
 // SDL's own instructions were wrong about this
 #include <SDL2/SDL.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <stdint.h>
+typedef unsigned char uchar;
+typedef unsigned char ubyte;
+typedef int32_t int32;
+typedef uint32_t uint32;
 
 SDL_Window* window = NULL;
 
@@ -16,8 +22,94 @@ void atexit_shutdown () {
   SDL_Quit ();
 }
 
+bool compile_shader (const char* file_name, GLuint* shader, GLenum type) {
+  char* str = NULL;
+
+  { // get string from file
+    FILE* fp = fopen (file_name, "r");
+    if (!fp) {
+      fprintf (stderr, "ERROR: opening shader file %s\n", file_name);
+      return false;
+    }
+    fseek (fp, 0, SEEK_END);
+    size_t sz = ftell (fp);
+    rewind (fp);
+    str = (char*)malloc (sz + 1);
+    if (!str) {
+      fprintf (stderr, "ERROR: out of memory reading shader file %s\n",
+        file_name);
+      fclose (fp);
+      return false;
+    }
+    size_t cnt = fread (str, 1, sz, fp);
+    if (cnt == 0) {
+      fprintf (stderr, "ERROR: reading shader file %s\n", file_name);
+      fclose (fp);
+      return false;
+    }
+    // append \0 to end of file string
+    str[sz] = 0;
+    fclose (fp);
+  }
+
+  { // create shader in GL
+    *shader = glCreateShader (type);
+    glShaderSource (*shader, 1, (const char**)&str, NULL);
+    glCompileShader (*shader);
+    int params = -1;
+    glGetShaderiv (*shader, GL_COMPILE_STATUS, &params);
+    if (GL_TRUE != params) {
+      int actual_length = 0;
+      char slog[4096];
+      glGetShaderInfoLog (*shader, 4096, &actual_length, slog);
+      fprintf (stderr, "ERROR: shader index %u did not compile. log:\n%s",
+        *shader, slog);
+      return false;
+    }
+  }
+
+  free ((void*)str);
+  return true;
+}
+
+bool create_shader_prog_from_files (const char* vs_file_name,
+  const char* fs_file_name, GLuint* sp) {
+  GLuint vs = 0, fs = 0;
+  if (!compile_shader (vs_file_name, &vs, GL_VERTEX_SHADER)) {
+    return false;
+  }
+  if (!compile_shader (fs_file_name, &fs, GL_FRAGMENT_SHADER)) {
+    return false;
+  }
+  *sp = glCreateProgram ();
+  glAttachShader (*sp, fs);
+  glAttachShader (*sp, vs);
+  glLinkProgram (*sp);
+  glDeleteShader (fs);
+  glDeleteShader (vs);
+  int params = -1;
+  glGetProgramiv (*sp, GL_LINK_STATUS, &params);
+  if (GL_TRUE != params) {
+    fprintf (stderr, "program %i GL_LINK_STATUS = GL_FALSE\n", *sp);
+    int max_length = 2048;
+    int actual_length = 0;
+    char tlog[2048];
+    glGetProgramInfoLog (*sp, max_length, &actual_length, tlog);
+    printf ("program info log for GL index %u:\n%s", *sp, tlog);
+    return false;
+  }
+  glValidateProgram (*sp);
+  glGetProgramiv (*sp, GL_VALIDATE_STATUS, &params);
+  if (GL_TRUE != params) {
+    fprintf (stderr, "program %i GL_VALIDATE_STATUS = GL_FALSE\n",
+      *sp);
+    return false;
+  }
+  return true;
+}
+
 int main () {
-  GLuint shader_programme, vao;
+  GLuint sp, vao;
 
   {
     { // SDL version sanity check
@@ -95,6 +187,7 @@ int main () {
     glEnable (GL_DEPTH_TEST);
     glDepthFunc (GL_LESS);
     glClearColor (0.2f, 0.2f, 0.2f, 1.0f);
+
     glGenVertexArrays (1, &vao);
   	glBindVertexArray (vao);
     float pts[] = {-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f};
@@ -105,63 +198,15 @@ int main () {
     glEnableVertexAttribArray (0);
     glVertexAttribPointer (0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
-    const char* vertex_shader =
-  	"#version 410\n"
-    "in vec2 vp;"
-  	"void main () {"
-  	"	gl_Position = vec4 (vp * 0.5, 0.0, 1.0);"
-  	"}";
-  	const char* fragment_shader =
-  	"#version 410\n"
-  	"out vec4 frag_colour;"
-  	"void main () {"
-  	"	frag_colour = vec4 (0.5, 0.0, 0.5, 1.0);"
-  	"}";
-    GLuint vs = glCreateShader (GL_VERTEX_SHADER);
-  	glShaderSource (vs, 1, &vertex_shader, NULL);
-  	glCompileShader (vs);
-    int params = -1;
-  	glGetShaderiv (vs, GL_COMPILE_STATUS, &params);
-  	if (GL_TRUE != params) {
-  		fprintf (stderr, "ERROR: GL shader index %i did not compile\n", vs);
-  		return 1; // or exit or something
-  	}
-  	GLuint fs = glCreateShader (GL_FRAGMENT_SHADER);
-  	glShaderSource (fs, 1, &fragment_shader, NULL);
-  	glCompileShader (fs);
-    glGetShaderiv (fs, GL_COMPILE_STATUS, &params);
-    if (GL_TRUE != params) {
-  		fprintf (stderr, "ERROR: GL shader index %i did not compile\n", fs);
-  		return 1; // or exit or something
-  	}
-  	shader_programme = glCreateProgram ();
-  	glAttachShader (shader_programme, fs);
-  	glAttachShader (shader_programme, vs);
-  	glLinkProgram (shader_programme);
-    glGetProgramiv (shader_programme, GL_LINK_STATUS, &params);
-    if (GL_TRUE != params) {
-      fprintf (stderr, "program %i GL_LINK_STATUS = GL_FALSE\n",
-        shader_programme);
-      int max_length = 2048;
-    	int actual_length = 0;
-    	char tlog[2048];
-    	glGetProgramInfoLog (shader_programme, max_length, &actual_length, tlog);
-    	printf ("program info log for GL index %u:\n%s", shader_programme, tlog);
-  		return 1;
-  	}
-    glValidateProgram (shader_programme);
-    glGetProgramiv (shader_programme, GL_VALIDATE_STATUS, &params);
-    if (GL_TRUE != params) {
-  		fprintf (stderr, "program %i GL_VALIDATE_STATUS = GL_FALSE\n",
-        shader_programme);
-  		return 1;
-  	}
+    if (!create_shader_prog_from_files ("test.vert", "test.frag", &sp)) {
+      return 1;
+    }
   }
 
   {
     glViewport (0, 0, 1024, 768);
     glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glUseProgram (shader_programme);
+    glUseProgram (sp);
 		glBindVertexArray (vao);
     glDisable (GL_CULL_FACE);
     glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
