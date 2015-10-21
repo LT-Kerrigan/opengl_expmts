@@ -17,6 +17,7 @@ bool start_gl () {
 	glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #endif
+	glfwWindowHint (GLFW_SAMPLES, 16);
 	g_window = glfwCreateWindow (g_gl_width, g_gl_height, "PBR", NULL, NULL);
 	if (!g_window) {
 		fprintf (stderr, "ERROR: could not open window with GLFW3\n");
@@ -24,7 +25,6 @@ bool start_gl () {
 		return false;
 	}
 	glfwMakeContextCurrent (g_window);
-	glfwWindowHint (GLFW_SAMPLES, 16);
 	glewExperimental = GL_TRUE;
 	glewInit ();
 	const GLubyte* renderer = glGetString (GL_RENDERER); // get renderer string

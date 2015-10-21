@@ -161,7 +161,12 @@ int main () {
   glEnable (GL_DEPTH_TEST); // enable depth-testing
   glDepthFunc (GL_LESS); // depth-testing interprets a smaller value as "closer"
 	glClearColor (0.5f, 0.5f, 0.5f, 1.0f);
-	
+	//glEnable(GL_CULL_FACE);
+ glCullFace(GL_BACK);
+ glFrontFace(GL_CCW);
+
+
+
 	double prev_time = glfwGetTime ();
 	while (!glfwWindowShouldClose (window)) {
 		double curr_time = glfwGetTime ();
