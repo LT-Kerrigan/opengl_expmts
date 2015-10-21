@@ -3,7 +3,7 @@
 A repository to put play-around ideas (good and bad), semi-finished projects,
 and volatile software.
 
-## Contents
+## contents
 
 | numerus | titulus             | descriptio                                            | status      |
 |---------|---------------------|-------------------------------------------------------|-------------|
@@ -22,8 +22,9 @@ and volatile software.
 | 012     | gl3w | alternative to GLEW           | working    |
 | 013     | sdl2 | SDL2 opengl start-up | osx    |
 | 014     | mirror_plane_fb | simple mirror using previous frame's rendering flipped | working    |
-| 015     | hdr, bloom | high-dynamic range rendering with bloom shader | proposed    |
+| 015     | hdr_bloom | high-dynamic range rendering with bloom shader | proposed    |
+| 016     | pbr | physically-based rendering | proposed    |
 
-## To Do
+## acknowledgements
 
-* stuff from old GL folder
+* some models from [Stanford Computer Graphics Laboratory](http://graphics.stanford.edu/data/3Dscanrep/)
