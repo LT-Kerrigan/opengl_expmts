@@ -3,7 +3,7 @@
 A repository to put play-around ideas (good and bad), semi-finished projects,
 and volatile software.
 
-## Contents
+## contents
 
 | numerus | titulus             | descriptio                                            | status      |
 |---------|---------------------|-------------------------------------------------------|-------------|
