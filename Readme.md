@@ -23,7 +23,7 @@ and volatile software.
 | 013     | sdl2 | SDL2 opengl start-up | osx    |
 | 014     | mirror_plane_fb | simple mirror using previous frame's rendering flipped | working    |
 | 015     | hdr_bloom | high-dynamic range rendering with bloom shader | proposed    |
-| 016     | pbr | physiscally-based rendering | proposed    |
+| 016     | pbr | physically-based rendering | proposed    |
 
 ## To Do
 
