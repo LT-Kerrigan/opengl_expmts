@@ -25,6 +25,6 @@ and volatile software.
 | 015     | hdr_bloom | high-dynamic range rendering with bloom shader | proposed    |
 | 016     | pbr | physically-based rendering | proposed    |
 
-## To Do
+## acknowledgements
 
-* stuff from old GL folder
+* some models from [Stanford Computer Graphics Laboratory](http://graphics.stanford.edu/data/3Dscanrep/)
