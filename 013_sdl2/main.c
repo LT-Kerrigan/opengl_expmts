@@ -1,8 +1,11 @@
+// Windows mingw32 build doesn't work -- wants WinMain and I say no to that
+
 #include <GL/glew.h>
 // SDL's own instructions were wrong about this
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 SDL_Window* window = NULL;
 
@@ -99,7 +102,7 @@ bool create_shader_prog_from_files (const char* vs_file_name,
   return true;
 }
 
-int main () {
+int main (int argc, char** argv) {
   GLuint sp, vao;
 
   {
