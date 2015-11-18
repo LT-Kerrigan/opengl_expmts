@@ -195,14 +195,14 @@ int main () {
 			dt_data[i + 3] = (char)255;
 		} else {
 			dt_data[i] = (char)255;
-			dt_data[i + 1] = (char)255;
-			dt_data[i + 2] = 0;
+			dt_data[i + 1] = 0;
+			dt_data[i + 2] = (char)255;
 			dt_data[i + 3] = (char)255;
 		}
 		int sq_dn = i / (16 * 16);
 		if ((sq_dn / 2) * 2 == sq_dn) {
 			dt_data[i] = (char)255 - dt_data[i];
-			dt_data[i + 1] = (char)255 - dt_data[i + 1];
+			dt_data[i + 2] = (char)255 - dt_data[i + 2];
 		}
 	}
 
