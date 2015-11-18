@@ -24,7 +24,8 @@ and volatile software.
 | 014     | mirror_plane_fb | simple mirror using previous frame's rendering flipped | working    |
 | 015     | hdr_bloom | high-dynamic range rendering with bloom shader | proposed    |
 | 016     | pbr | physically-based rendering | proposed    |
-| 017     | x11_render_loop | basic rendering demo with just X11 (not opengl) | WORKING |
+| 017     | x11_render_loop | basic rendering demo with just X11 (not opengl) | working |
+| 018     | default_texture | hard-coded fallback texture if img not found | working |
 
 ## acknowledgements
 
