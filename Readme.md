@@ -26,6 +26,7 @@ and volatile software.
 | 016     | pbr | physically-based rendering | proposed    |
 | 017     | x11_render_loop | basic rendering demo with just X11 (not opengl) | working |
 | 018     | default_texture | hard-coded fallback texture if img not found | working |
+| 019     | generic_shader | shader abstraction that can fall back to default if a shader fails to build | working |
 
 ## acknowledgements
 

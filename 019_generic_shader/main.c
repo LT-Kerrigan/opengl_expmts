@@ -1,7 +1,7 @@
 //
-// Basic Spinning Cube in OpenGL 2.1
+// generic shader interface prototype
 // Anton Gerdelan
-// 23 Nov 2014
+// 20 Nov 2015
 //
 //#include "default_texture.h"
 #include "stb_image.h"
@@ -9,6 +9,7 @@
 #include "obj_parser.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include "shader.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <stdio.h>
@@ -21,45 +22,10 @@
 int gl_width = 800;
 int gl_height = 800;
 
-//
-// copy a shader from a plain text file into a character array
-bool parse_file_into_str (
-	const char* file_name, char* shader_str, int max_len
-) {
-	FILE* file = fopen (file_name , "r");
-	int current_len = 0;
-	char line[2048];
-
-	shader_str[0] = '\0'; /* reset string */
-	if (!file) {
-		fprintf (stderr, "ERROR: opening file for reading: %s\n", file_name);
-		return false;
-	}
-	strcpy (line, ""); /* remember to clean up before using for first time! */
-	while (!feof (file)) {
-		if (NULL != fgets (line, 2048, file)) {
-			current_len += strlen (line); /* +1 for \n at end */
-			if (current_len >= max_len) {
-				fprintf (stderr,
-					"ERROR: shader length is longer than string buffer length %i\n",
-					max_len
-				);
-			}
-			strcat (shader_str, line);
-		}
-	}
-	if (EOF == fclose (file)) { /* probably unnecesssary validation */
-		fprintf (stderr, "ERROR: closing file from reading %s\n", file_name);
-		return false;
-	}
-	return true;
-}
-
 int main () {
 	GLFWwindow* window = NULL;
 	const GLubyte* renderer;
 	const GLubyte* version;
-	GLuint shader_programme;
 	GLuint vao;
 
 	//
@@ -131,31 +97,17 @@ int main () {
 	//
 	// Load shaders from files
 	// --------------------------------------------------------------------------
+	int sp_i = -1;
 	{
-		char* vertex_shader_str;
-		char* fragment_shader_str;
-
-		// allocate some memory to store shader strings
-		vertex_shader_str = (char*)malloc (81920);
-		fragment_shader_str = (char*)malloc (81920);
-		// load shader strings from text files
-		assert (parse_file_into_str ("teapot.vert", vertex_shader_str, 81920));
-		assert (parse_file_into_str ("teapot.frag", fragment_shader_str, 81920));
-		GLuint vs, fs;
-		vs = glCreateShader (GL_VERTEX_SHADER);
-		fs = glCreateShader (GL_FRAGMENT_SHADER);
-		glShaderSource (vs, 1, (const char**)&vertex_shader_str, NULL);
-		glShaderSource (fs, 1, (const char**)&fragment_shader_str, NULL);
-		// free memory
-		free (vertex_shader_str);
-		free (fragment_shader_str);
-		glCompileShader (vs);
-		glCompileShader (fs);
-		shader_programme = glCreateProgram ();
-		glAttachShader (shader_programme, fs);
-		glAttachShader (shader_programme, vs);
-		glLinkProgram (shader_programme);
-		/* TODO NOTE: you should check for errors and print logs after compiling and also linking shaders */
+		// TODO -- make sure some sort of VAO is bound for apple first
+		if (!init_shaders ()) {
+			fprintf (stderr, "FATAL ERROR: initialising shader management\n");
+			return 1;
+		}
+		if (!create_sp_from_files ("move_me.vert", "move_me.frag", &sp_i)) {
+			fprintf (stderr, "ERROR: creating shader programme from files\n"
+				"falling back to default shaders (%i)\n", sp_i);
+		}
 	}
 
 	//
@@ -170,14 +122,9 @@ int main () {
 	V = look_at (cam_pos, targ_pos, up);
 	P = perspective (67.0f, (float)gl_width / (float)gl_height, 0.1, 1000.0);
 
-	int M_loc = glGetUniformLocation (shader_programme, "M");
-	int V_loc = glGetUniformLocation (shader_programme, "V");
-	int P_loc = glGetUniformLocation (shader_programme, "P");
-	// send matrix values to shader immediately
-	glUseProgram (shader_programme);
-	glUniformMatrix4fv (M_loc, 1, GL_FALSE, M.m);
-	glUniformMatrix4fv (V_loc, 1, GL_FALSE, V.m);
-	glUniformMatrix4fv (P_loc, 1, GL_FALSE, P.m);
+	uni_M (sp_i, M);
+	uni_V (sp_i, V);
+	uni_P (sp_i, P);
 
 	int dt_pixel_c = 16 * 16;
 	char* dt_data = (char*)malloc (4 * dt_pixel_c);
@@ -273,12 +220,12 @@ int main () {
 		double elapsed = curr - prev;
 		prev = curr;
 
-		glUseProgram (shader_programme);
+		use_sp (sp_i);
 		glBindVertexArray (vao);
 
 		a += sinf (elapsed * 50.0f);
 		M = rotate_y_deg (identity_mat4 (), a);
-		glUniformMatrix4fv (M_loc, 1, GL_FALSE, M.m);
+		uni_M (sp_i, M);
 
 		glDrawArrays (GL_TRIANGLES, 0, point_count);
 

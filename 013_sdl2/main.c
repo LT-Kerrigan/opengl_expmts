@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h> // memset
 
 SDL_Window* window = NULL;
 
@@ -20,7 +21,7 @@ bool compile_shader (const char* file_name, GLuint* shader, GLenum type) {
   char* str = NULL;
 
   { // get string from file
-    FILE* fp = fopen (file_name, "r");
+    FILE* fp = fopen (file_name, "rb");
     if (!fp) {
       fprintf (stderr, "ERROR: opening shader file %s\n", file_name);
       return false;
@@ -35,6 +36,7 @@ bool compile_shader (const char* file_name, GLuint* shader, GLenum type) {
       fclose (fp);
       return false;
     }
+    memset (str, 0, sz+1);
     size_t cnt = fread (str, 1, sz, fp);
     if (cnt == 0) {
       fprintf (stderr, "ERROR: reading shader file %s\n", file_name);
@@ -43,6 +45,8 @@ bool compile_shader (const char* file_name, GLuint* shader, GLenum type) {
     }
     // append \0 to end of file string
     str[sz] = 0;
+    for (int i = 0; i < sz; i++) { printf ("[%c]", str[i]);}
+    printf ("\n\n");
     fclose (fp);
   }
 
