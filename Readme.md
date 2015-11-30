@@ -27,7 +27,8 @@ and volatile software.
 | 017     | x11_render_loop | basic rendering demo with just X11 (not opengl) | working |
 | 018     | default_texture | hard-coded fallback texture if img not found | working |
 | 019     | generic_shader | shader abstraction that can fall back to default if a shader fails to build | working |
-| 020     | fresnel_prism | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
+| 020     | image_chan_swap | tool to swap channels in Unreal exported normal maps | working |
+| xxx     | fresnel_prism | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
 
 ## acknowledgements
 
