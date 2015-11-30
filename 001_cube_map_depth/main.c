@@ -13,28 +13,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <stdbool.h>
 
 int g_gl_width = 800;
 int g_gl_height = 600;
 int g_shad_res = 512;
 
 int main () {
-	// GL startup
-	// ----------
 	GLFWwindow* window = NULL;
 	{
 		assert (glfwInit ());
-	#ifdef APPLE
+#ifdef APPLE
 		glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
 		glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 2);
 		glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 		glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	#else
+#else
 		glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 4);
 		glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 3);
 		glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 		glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	#endif
+#endif
 		window = glfwCreateWindow (g_gl_width, g_gl_height, "cube depth", NULL,
 			NULL);
 		assert (window);
@@ -59,18 +58,6 @@ int main () {
 		// ----
 		glGenTextures (1, &depth_tex);
 		glActiveTexture (GL_TEXTURE0);
-		/*
-		glBindTexture (GL_TEXTURE_2D, depth_tex);
-		glTexImage2D (GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, g_shad_res, g_shad_res,
-			0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
-		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		// attach depth texture to framebuffer
-		glFramebufferTexture2D (GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
-			depth_tex, 0);
-		*/
 		glBindTexture (GL_TEXTURE_CUBE_MAP, depth_tex);
 		glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -83,8 +70,6 @@ int main () {
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
 				GL_TEXTURE_CUBE_MAP_NEGATIVE_X + i, depth_tex, 0);
 		}
-		
-		// ----
 		GLenum draw_bufs[] = { GL_NONE };
 		glDrawBuffers (1, draw_bufs);
 		glReadBuffer (GL_NONE);
@@ -95,11 +80,16 @@ int main () {
 	// -----
 	GLuint vao = 0;
 	{
-		float pts[] = { 0.0f, 1.0f, 0.0f, -1.0f, -1.0f, 0.0f, 1.0f, -1.0f, 0.0f };
+		float pts[] = {
+				-1.0f, -1.0f, -1.0f,
+				-1.0f, 1.0f, -1.0f,
+				1.0f, -1.0f, -1.0f,
+				1.0f, 1.0f, -1.0f
+		};
 		GLuint vbo = 0;
 		glGenBuffers (1, &vbo);
 		glBindBuffer (GL_ARRAY_BUFFER, vbo);
-		glBufferData (GL_ARRAY_BUFFER, 9 * sizeof (float), pts, GL_STATIC_DRAW);
+		glBufferData (GL_ARRAY_BUFFER, 12 * sizeof (float), pts, GL_STATIC_DRAW);
 		glGenVertexArrays (1, &vao);
 		glBindVertexArray (vao);
 		glEnableVertexAttribArray (0);
@@ -110,16 +100,13 @@ int main () {
 	// camera
 	// ------
 	mat4 V, P, shad_V, shad_P;
-	vec3 cam_pos = vec3_from_3f (0.0f, 0.0f, 1.0f);
+	float rot_spd = 180.0f;
+	float cam_hdg = 0.0f;
 	{
-		vec3 targ_pos = vec3_from_3f (0.0f, 0.0f, 0.0f);
-		vec3 up = vec3_from_3f (0.0f, 1.0f, 0.0f);
-		V = look_at (cam_pos, targ_pos, up);
+		V = rot_y_deg_mat4 (-cam_hdg);
 		float aspect = (float)g_gl_width / (float)g_gl_height;
 		P = perspective (67.0f, aspect, 0.1f, 100.0f);
-		
-		cam_pos = vec3_from_3f (0.0f, 0.0f, 3.0f);
-		shad_V = look_at (cam_pos, targ_pos, up);
+		shad_V = rot_y_deg_mat4 (-cam_hdg);
 		aspect = (float)g_shad_res / (float)g_shad_res;
 		shad_P = perspective (67.0f, aspect, 0.1f, 100.0f);
 	}
@@ -138,7 +125,7 @@ int main () {
 		{
 			printf ("depth.vert\n");
 			GLuint t = GL_VERTEX_SHADER;
-			FILE *fp = fopen ("depth.vert", "r");
+			FILE *fp = fopen ("depth.vert", "rb");
 			
 			assert (fp);
 			fseek (fp, 0, SEEK_END);
@@ -149,7 +136,6 @@ int main () {
 			size_t rs_sz = fread (s_buff, 1, sz, fp);
 			printf ("read %i bytes vs\n", (int)rs_sz);
 			s_buff[rs_sz] = '\0';
-			assert (rs_sz == sz);
 			fclose (fp);
 			GLuint s = glCreateShader (t);
 			const char** p = (const char**)&s_buff;
@@ -173,7 +159,7 @@ int main () {
 		{
 			printf ("depth.frag\n");
 			GLuint t = GL_FRAGMENT_SHADER;
-			FILE *fp = fopen ("depth.frag", "r");
+			FILE *fp = fopen ("depth.frag", "rb");
 			
 			assert (fp);
 			fseek (fp, 0, SEEK_END);
@@ -184,7 +170,6 @@ int main () {
 			size_t rs_sz = fread (s_buff, 1, sz, fp);
 			printf ("read %i bytes vs\n", (int)rs_sz);
 			s_buff[rs_sz] = '\0';
-			assert (rs_sz == sz);
 			fclose (fp);
 			GLuint s = glCreateShader (t);
 			const char** p = (const char**)&s_buff;
@@ -233,7 +218,7 @@ int main () {
 		{
 			printf ("after.vert\n");
 			GLuint t = GL_VERTEX_SHADER;
-			FILE *fp = fopen ("after.vert", "r");
+			FILE *fp = fopen ("after.vert", "rb");
 			
 			assert (fp);
 			fseek (fp, 0, SEEK_END);
@@ -244,7 +229,6 @@ int main () {
 			size_t rs_sz = fread (s_buff, 1, sz, fp);
 			printf ("read %i bytes vs\n", (int)rs_sz);
 			s_buff[rs_sz] = '\0';
-			assert (rs_sz == sz);
 			fclose (fp);
 			GLuint s = glCreateShader (t);
 			const char** p = (const char**)&s_buff;
@@ -268,7 +252,7 @@ int main () {
 		{
 			printf ("after.frag\n");
 			GLuint t = GL_FRAGMENT_SHADER;
-			FILE *fp = fopen ("after.frag", "r");
+			FILE *fp = fopen ("after.frag", "rb");
 			
 			assert (fp);
 			fseek (fp, 0, SEEK_END);
@@ -279,7 +263,6 @@ int main () {
 			size_t rs_sz = fread (s_buff, 1, sz, fp);
 			printf ("read %i bytes vs\n", (int)rs_sz);
 			s_buff[rs_sz] = '\0';
-			assert (rs_sz == sz);
 			fclose (fp);
 			GLuint s = glCreateShader (t);
 			const char** p = (const char**)&s_buff;
@@ -339,17 +322,18 @@ int main () {
 	
 	// main loop
 	// ---------
+	double p = glfwGetTime ();
 	while (!glfwWindowShouldClose (window)) {
-	
 		// depth write pass
 		// ----------------
 		glViewport (0, 0, g_shad_res, g_shad_res);
 		glBindFramebuffer (GL_FRAMEBUFFER, fb);
 		glClear (GL_DEPTH_BUFFER_BIT);
 		glUseProgram (depth_sp);
+		glUniformMatrix4fv (depth_V_loc, 1, GL_FALSE, shad_V.m);
 		// TODO Anton -- caster matrices go in here if different from main cam
 		glBindVertexArray (vao);
-		glDrawArrays (GL_TRIANGLES, 0, 3);
+		glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 		
 		// normal write pass
 		// ----------------
@@ -362,11 +346,33 @@ int main () {
 		glBindTexture (GL_TEXTURE_CUBE_MAP, depth_tex);
 		
 		glUseProgram (after_sp);
+		glUniformMatrix4fv (after_V_loc, 1, GL_FALSE, V.m);
 		glBindVertexArray (vao);
-		glDrawArrays (GL_TRIANGLES, 0, 3);
+		glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 		
 		glfwPollEvents ();
 		glfwSwapBuffers (window);
+
+		{
+			double t = glfwGetTime ();
+			double e = t - p;
+			p = t;
+			bool mvd = false;
+			if (glfwGetKey (window, GLFW_KEY_LEFT)) {
+				cam_hdg -= rot_spd * e;
+				mvd = true;
+			}
+			if (glfwGetKey (window, GLFW_KEY_RIGHT)) {
+				cam_hdg += rot_spd * e;
+				mvd = true;
+			}
+
+
+			if (mvd) {
+				V = rot_y_deg_mat4 (-cam_hdg);
+				printf ("cam hdg %.2f\n", cam_hdg);
+			}
+		}
 	}
 	
 	// done
