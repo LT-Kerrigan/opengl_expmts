@@ -28,6 +28,7 @@ and volatile software.
 | 018     | default_texture | hard-coded fallback texture if img not found | working |
 | 019     | generic_shader | shader abstraction that can fall back to default if a shader fails to build | working |
 | 020     | image_chan_swap | tool to swap channels in Unreal exported normal maps | working |
+| 021     | omni_shad_sp | single-pass omni-directional shadow mapping | started... |
 | xxx     | fresnel_prism | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
 
 ## acknowledgements
