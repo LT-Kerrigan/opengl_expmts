@@ -29,6 +29,7 @@ and volatile software.
 | 019     | generic_shader | shader abstraction that can fall back to default if a shader fails to build | working |
 | 020     | image_chan_swap | tool to swap channels in Unreal exported normal maps | working |
 | 021     | omni_shad_sp | single-pass omni-directional shadow mapping | started... |
+| 022     | glfw_getkeyname | testing new key name localisation for glfw | working |
 | xxx     | fresnel_prism | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
 
 ## acknowledgements
