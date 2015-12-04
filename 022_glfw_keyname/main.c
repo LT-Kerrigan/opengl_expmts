@@ -11,6 +11,9 @@
 // returns (null) for all modifier keys including shifts
 // does not consider capslock state
 // summary: still need localisation files with key name translations
+// test on another (linux) machine:
+// (null) for all numpad keys, '`' instead of `grave`, no space etc
+// and numpad maths are identical names to others e.g. / == /
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
