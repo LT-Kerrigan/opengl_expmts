@@ -1,0 +1,79 @@
+<!-- Quaternion Demo
+Anton Gerdelan 9 Dec 2015
+antongerdelan.net -->
+
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Quaternion Rotation Demo - Anton Gerdelan</title>
+<style>
+.main_column {
+	position: absolute;
+	width: 1024px;
+	z-index: 15;
+	margin :0px 0 0 10px;
+	background: lightgrey;
+}
+td {
+    padding: 15px;
+    text-align: left;
+}
+</style>
+</head>
+
+<body onload="main()" style="font-family:monospace;">
+
+<div class="main_column">
+
+<center>
+<h2>Quaternion Rotation Demo</h2>
+</center>
+
+<table><tr><td>
+<canvas id="canvas" width=512 height=512></canvas>
+</td><td>
+<p>
+axis of rotation:
+x<input onkeydown="axis_changed_cb();" type="text" size="1" value="0.0" id="quat_x_axis_input" />
+y<input onkeydown="axis_changed_cb();" type="text" size="1" value="1.0" id="quat_y_axis_input" />
+z<input onkeydown="axis_changed_cb();" type="text" size="1" value="0.0" id="quat_z_axis_input" />
+<br />
+angle:
+<input type="text" size="1" value="0.0" id="quat_angle" />(degrees)
+</p>
+<p id ="normd">
+normalise(axis) = [0.0, 1.0, 0.0]
+</p>
+<hr />
+<p id="versor">
+versor = [<br />
+&nbsp;&nbsp;cos (angle),<br />
+&nbsp;&nbsp;x * sin (0.5 * angle),<br />
+&nbsp;&nbsp;y * sin (0.5 * angle),<br />
+&nbsp;&nbsp;z * sin (0.5 * angle)<br />
+]<br />
+= [w, x, y, z]
+</p>
+<hr />
+<p id="qtoM">
+mat4 R = quaternion_to_matrix (versor)
+</p>
+</td></tr></table>
+
+</body>
+</html>
+
+<small><a href="http://antongerdelan.net">Anton Gerdelan</a>,
+Trinity College Dublin, Ireland, 9 Dec 2015</small>
+</div>
+
+</body>
+
+</html>
+
+<script src="js/main.js"></script>
+<script src="js/obj_parser.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/webgl-utils.js"></script>
+<script src="js/maths_funcs.js"></script>
