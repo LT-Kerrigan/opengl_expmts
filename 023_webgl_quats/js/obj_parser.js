@@ -4,16 +4,15 @@
 // antongerdelan.net
 //
 
-var vbo_vp, vbo_vn, vbo_vt;
-var pc = 0;
-
 //
 // could alternatively do one single, interleaved VBO here
 function parse_obj_into_vbos (file_name) {
+	var mesh = new Object ();
+	mesh.is_loaded = false;
 	console.log ("parsing " + file_name);
 	
 	var xmlhttp = new XMLHttpRequest();
-	xmlhttp.open ("GET", file_name, false);
+	xmlhttp.open ("GET", file_name, true);
 	xmlhttp.onload = function (e) {
   	var str = xmlhttp.responseText;
   	var lines = str.split ('\n');
@@ -79,23 +78,26 @@ function parse_obj_into_vbos (file_name) {
 			} 
 		}
 
-		pc = sorted_vp.length / 3;
-		vbo_vp = gl.createBuffer ();
-		gl.bindBuffer (gl.ARRAY_BUFFER, vbo_vp);
+		mesh.pc = sorted_vp.length / 3;
+		mesh.vbo_vp = gl.createBuffer ();
+		gl.bindBuffer (gl.ARRAY_BUFFER, mesh.vbo_vp);
 		gl.bufferData (gl.ARRAY_BUFFER, new Float32Array (sorted_vp),
 			gl.STATIC_DRAW);
-		vbo_vt = gl.createBuffer ();
-		gl.bindBuffer (gl.ARRAY_BUFFER, vbo_vt);
+		mesh.vbo_vt = gl.createBuffer ();
+		gl.bindBuffer (gl.ARRAY_BUFFER, mesh.vbo_vt);
 		gl.bufferData (gl.ARRAY_BUFFER, new Float32Array (sorted_vt),
 			gl.STATIC_DRAW);
-		vbo_vn = gl.createBuffer ();
-		gl.bindBuffer (gl.ARRAY_BUFFER, vbo_vn);
+		mesh.vbo_vn = gl.createBuffer ();
+		gl.bindBuffer (gl.ARRAY_BUFFER, mesh.vbo_vn);
 		gl.bufferData (gl.ARRAY_BUFFER, new Float32Array (sorted_vn),
 			gl.STATIC_DRAW);
-		console.log ("point count: " + pc);
+		console.log ("point count: " + mesh.pc);
+
+		mesh.is_loaded = true;
 		
 		//document.getElementById ("mesh_info").innerHTML = "mesh: " + obj_fn +
 		//	"<br />points: " + pc;
 	}
 	xmlhttp.send ();
+	return mesh;
 }
