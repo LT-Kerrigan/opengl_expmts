@@ -233,7 +233,7 @@ function main_loop () {
 			gl.bufferData (gl.ARRAY_BUFFER, new Float32Array (vp), gl.STATIC_DRAW);
 		}
 
-		var str = "<br />" + "&nbsp;&nbsp;| " + R[0].toPrecision (2) + " " + R[4].toFixed (2) + " " +
+		var str = "<br />" + "&nbsp;&nbsp;| " + R[0].toFixed (2) + " " + R[4].toFixed (2) + " " +
 			R[8].toFixed (2) + " " + R[12].toFixed (2) + " |<br />" +
 			"= | " + R[1].toFixed (2) + " " + R[5].toFixed (2) + " " +
 			R[9].toFixed (2) + " " + R[13].toFixed (2) + " |<br />" +
