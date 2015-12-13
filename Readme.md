@@ -31,7 +31,10 @@ and volatile software.
 | 021     | omni_shad_sp | single-pass omni-directional shadow mapping | started... |
 | 022     | glfw_getkeyname | testing new key name localisation for glfw | working |
 | 023     | webgl_quats | webgl demo of quaternion rotation mathematics | working |
+| 024     | hmap_terrain | the traditional heighmapped terrain demo | working |
 | xxx     | fresnel_prism | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
+| xxx     | apg_glh | custom alternative to glew / gl headers setup | proposed |
+
 
 ## acknowledgements
 
