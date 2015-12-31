@@ -34,6 +34,7 @@ and volatile software.
 | 024     | hmap_terrain | the traditional heighmapped terrain demo | working |
 | xxx     | fresnel_prism | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
 | xxx     | apg_glh | custom alternative to glew / gl headers setup | proposed |
+| xxx     | wu_line | wu's line drawing algorithm (pseudo on wiki) | proposed |
 
 
 ## acknowledgements
