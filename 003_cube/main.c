@@ -17,7 +17,10 @@
 //
 // dimensions of the window drawing surface
 int gl_width = 800;
-int gl_height = 800;
+int gl_height = 600;
+
+double frame_accum;
+long frame_count;
 
 //
 // copy a shader from a plain text file into a character array
@@ -224,6 +227,13 @@ int main () {
 		double curr = glfwGetTime ();
 		double elapsed = curr - prev;
 		prev = curr;
+		frame_accum += elapsed;
+		if (frame_accum > 0.5 && frame_count > 0) {
+			double fps = frame_count / frame_accum;
+			frame_accum = 0.0;
+			frame_count = 0;
+			printf ("%f fps\n", (float)fps);
+		}
 		
 		glUseProgram (shader_programme);
 		glBindVertexArray (vao);
@@ -237,6 +247,7 @@ int main () {
 		/* this just updates window events and keyboard input events (not used yet) */
 		glfwPollEvents ();
 		glfwSwapBuffers (window);
+		frame_count++;
 	}
 
 	return 0;

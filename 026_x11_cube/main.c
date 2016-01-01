@@ -19,8 +19,8 @@
 #include <time.h>
 #include <assert.h>
 
-#define WIDTH 640
-#define HEIGHT 480
+#define WIDTH 800
+#define HEIGHT 600
 
 float geom[] = {
 	1.0, 1.0, 1.0,
@@ -50,6 +50,20 @@ float geom[] = {
 	-1.0, -1.0, -1.0,
 	1.0, -1.0, -1.0,
 	1.0, 1.0, -1.0,
+	
+	-1.0, 1.0, 1.0,
+	1.0, 1.0, 1.0,
+	1.0, 1.0, -1.0,
+	1.0, 1.0, -1.0,
+	-1.0, 1.0, -1.0,
+	-1.0, 1.0, 1.0,
+	
+	-1.0, -1.0, -1.0,
+	1.0, -1.0, -1.0,
+	1.0, -1.0, 1.0,
+	1.0, -1.0, 1.0,
+	-1.0, -1.0, 1.0,
+	-1.0, -1.0, -1.0,
 };
 
 Display* display;
@@ -76,7 +90,7 @@ vec4 persp_div (vec4 v) {
 void draw_cube () {
 	// HACK fake timer
 	// draw triangle geom
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 12; i++) {
 		float ax = geom[i * 9];
 		float ay = geom[i * 9 + 1];
 		float az = geom[i * 9 + 2];
@@ -92,7 +106,7 @@ void draw_cube () {
 		vec4 vc = vec4_from_4f (cx, cy, cz, 1.0);
 		//mat4 S = scale_mat4 (vec3_from_3f (0.5, 0.5, 0.5));
 		mat4 Rx = rot_x_deg_mat4 (45.0);
-		static double ra = 0.0;
+		static double ra = 45.0;
 		ra += delta_s * 10.0;
 		mat4 Ry = rot_y_deg_mat4 (ra);
 		// TODO - think my maths lib has args backwards
@@ -144,15 +158,22 @@ void draw_cube () {
 			Number ((vc[0]).toFixed (0)), Number ((vc[1]).toFixed (0)),
 			r, g, b);*/
 			
-		XDrawLine (display, window, graphics_context, va.v[0], va.v[1],
+		/*XDrawLine (display, window, graphics_context, va.v[0], va.v[1],
 			vb.v[0], vb.v[1]);
 		XDrawLine (display, window, graphics_context, vb.v[0], vb.v[1],
 			vc.v[0], vc.v[1]);
 		XDrawLine (display, window, graphics_context, vc.v[0], vc.v[1],
-			va.v[0], va.v[1]);
+			va.v[0], va.v[1]);*/
 			
-		 //XFillPolygon (Display *display, Drawable d, GC
-    //gc, XPoint *points, int npoints, int shape, int mode); 
+		XPoint pts[3];
+		pts[0].x = va.v[0];
+		pts[0].y = va.v[1];
+		pts[1].x = vb.v[0];
+		pts[1].y = vb.v[1];
+		pts[2].x = vc.v[0];
+		pts[2].y = vc.v[1];
+			
+		XFillPolygon (display, window, graphics_context,pts, 3,  Convex, CoordModeOrigin); 
 	}
 }
 
