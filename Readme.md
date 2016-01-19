@@ -35,6 +35,7 @@ and volatile software.
 | xxx     | fresnel_prism | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
 | xxx     | apg_glh | custom alternative to glew / gl headers setup | proposed |
 | xxx     | wu_line | wu's line drawing algorithm (pseudo on wiki) | proposed |
+| xxx     | depth_antioverdraw | http://fabiensanglard.net/doom3/renderer.php | proposed |
 
 
 ## acknowledgements
