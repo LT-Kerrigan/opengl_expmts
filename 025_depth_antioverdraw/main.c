@@ -4,6 +4,11 @@
 // anton gerdelan 20 jan 2016 <gerdela@scss.tcd.ie>
 // trinity college dublin, ireland
 //
+// press F2 to toggle mode
+// notes - i get a speed-up only with a lower number of meshes e.g. 99 draws
+// with higher numbers e.g. 999 or 9999 the cpu side stuff seems to nail
+// the frame rate
+//
 
 #include "apg_maths.h"
 #include "obj_parser.h"
@@ -82,11 +87,19 @@ static void init () {
 			"void main () {"
 			"  gl_Position = PVM * vec4 (vp, 1.0);"
 			"}";
+		// aritificial crap put in shader to make it slower
 		const char* fragment_shader =
 			"#version 430\n"
 			"out vec4 frag_colour;"
 			"void main () {"
-			"  frag_colour = vec4 (0.5, 0.0, 0.5, 1.0);"
+			"  vec3 sum = vec3 (0.0, 0.0, 0.0);"
+			"  for (int i = 0; i < 32; i++) {"
+			"    sum.r += float (i);"
+			"    sum.g += float (i * 2);"
+			"    sum.b += float (i + 1) * 2.0;"
+			"    sum = normalize (sum);"
+			"  }"
+			"  frag_colour = vec4 (sum, 1.0);"
 			"}";
 		GLuint vs = glCreateShader (GL_VERTEX_SHADER);
 		glShaderSource (vs, 1, &vertex_shader, NULL);
@@ -103,7 +116,7 @@ static void init () {
 	{ // camera
 		float a = (float)g_gl.fb_width / (float)g_gl.fb_height;
 		P = perspective (67.0f, a, 0.1f, 1000.0f);
-		V = look_at (vec3_from_3f (0.0f, 0.0f, 10.0f),
+		V = look_at (vec3_from_3f (0.0f, 0.0f, 1.0f),
 			vec3_from_3f (0.0f, 0.0f, 0.0f),
 			vec3_from_3f (0.0f, 1.0f, 0.0f));
 		PV = mult_mat4_mat4 (P, V);
@@ -121,7 +134,7 @@ static void draw_frame (double elapsed) {
 		for (int i = 0; i < NUM_MONKEYS; i++) {
 			float x = 0.0f;
 			float y = 0.0f;
-			float z = (float)(-i * 10);
+			float z = sinf ((float)i) * 100.0f - 100.0f;
 			mat4 M = translate_mat4 (vec3_from_3f (x, y, z));
 			mat4 PVM = mult_mat4_mat4 (PV, M);
 			glUniformMatrix4fv (dsp_PVM_loc, 1, GL_FALSE, PVM.m);
@@ -136,7 +149,7 @@ static void draw_frame (double elapsed) {
 		for (int i = 0; i < NUM_MONKEYS; i++) {
 			float x = 0.0f;
 			float y = 0.0f;
-			float z = (float)(-i * 10);
+			float z = sinf ((float)i) * 100.0f - 100.0f;
 			mat4 M = translate_mat4 (vec3_from_3f (x, y, z));
 			mat4 PVM = mult_mat4_mat4 (PV, M);
 			glUniformMatrix4fv (sp_PVM_loc, 1, GL_FALSE, PVM.m);
@@ -183,7 +196,17 @@ int main () {
 					break;
 				}
 				// TODO toggle pre-pass
+				static bool was_down = false;
+				bool is_down = false;
 				if (glfwGetKey (g_gl.win, GLFW_KEY_F2)) {
+					if (!was_down) {
+						is_down = true;
+						was_down = true;
+					}
+				} else {
+					was_down = false;
+				}
+				if (is_down) {
 					do_pre_pass = !do_pre_pass;
 					printf ("pre-pass = %i\n", (int)do_pre_pass);
 				}
