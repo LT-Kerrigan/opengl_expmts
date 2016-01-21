@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #define MESH_FILE "../common/mesh/suzanne.obj"
 #define NUM_MONKEYS 99
-
+float monkey_zs[NUM_MONKEYS];
 bool do_pre_pass = true;
 APG_Mesh mesh;
 GLuint shader_programme, dshader_programme;
@@ -121,6 +121,10 @@ static void init () {
 			vec3_from_3f (0.0f, 1.0f, 0.0f));
 		PV = mult_mat4_mat4 (P, V);
 	}
+	// monkey positions (distribute the distances but not in order)
+	for (int i = 0; i < NUM_MONKEYS; i++) {
+		monkey_zs[i] = sinf ((float)i) * 100.0f - 100.0f;
+	}
 }
 
 static void stop () {
@@ -132,10 +136,7 @@ static void draw_frame (double elapsed) {
 	if (do_pre_pass) { // depth-writing pre-pass
 		glUseProgram (dshader_programme);
 		for (int i = 0; i < NUM_MONKEYS; i++) {
-			float x = 0.0f;
-			float y = 0.0f;
-			float z = sinf ((float)i) * 100.0f - 100.0f;
-			mat4 M = translate_mat4 (vec3_from_3f (x, y, z));
+			mat4 M = translate_mat4 (vec3_from_3f (0.0f, 0.0f, monkey_zs[i]));
 			mat4 PVM = mult_mat4_mat4 (PV, M);
 			glUniformMatrix4fv (dsp_PVM_loc, 1, GL_FALSE, PVM.m);
 			glBindVertexArray (mesh.vao);
@@ -147,10 +148,7 @@ static void draw_frame (double elapsed) {
 	{ // normal render pass with no depth rendering
 		glUseProgram (shader_programme);
 		for (int i = 0; i < NUM_MONKEYS; i++) {
-			float x = 0.0f;
-			float y = 0.0f;
-			float z = sinf ((float)i) * 100.0f - 100.0f;
-			mat4 M = translate_mat4 (vec3_from_3f (x, y, z));
+			mat4 M = translate_mat4 (vec3_from_3f (0.0f, 0.0f, monkey_zs[i]));
 			mat4 PVM = mult_mat4_mat4 (PV, M);
 			glUniformMatrix4fv (sp_PVM_loc, 1, GL_FALSE, PVM.m);
 			glBindVertexArray (mesh.vao);
