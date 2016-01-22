@@ -140,14 +140,17 @@ static void init () {
 			"#version 430\n"
 			"in vec3 vp;"
 			"uniform mat4 PVM;"
+			"out vec4 p;"
 			"void main () {"
 			"  gl_Position = PVM * vec4 (vp, 1.0);"
+			"  p = gl_Position;"
 			"}";
 		const char* dfragment_shader =
 			"#version 430\n"
+			"in vec4 p;"
 			"out vec4 fc;"
 			"void main () {"
-			"  fc = vec4 (0.2, 0.0, 0.0, 1.0);"
+			"  fc = vec4 (p.xyz / p.w, 1.0);"
 			"}";
 		GLuint dvs = glCreateShader (GL_VERTEX_SHADER);
 		glShaderSource (dvs, 1, &dvertex_shader, NULL);
@@ -331,18 +334,21 @@ int main () {
 				glBindVertexArray (cube_mesh.vao);
 				glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, cube_mesh.vbo_indexed);
 			
-				for (int camd = 0; camd < 6; camd++) {
+				for (int camd = 0; camd < 1; camd++) {
 				
 					// bind for writing
 					glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 						GL_TEXTURE_CUBE_MAP_POSITIVE_X + camd, g_fb_tex, 0);
+					glClearColor (0.2,0.2,0.2,1.0);
 					glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 					
 					mat4 lPV = mult_mat4_mat4 (g_caster_P, g_caster_V[camd]);
 					{ // inside-out cube
 						mat4 M = scale_mat4 (vec3_from_3f (30.0f, 30.0f, 30.0f));
-						mat4 PVM = mult_mat4_mat4 (lPV, M);
-						glUniformMatrix4fv (dsp_PVM_loc, 1, GL_FALSE, PVM.m);
+						mat4 lPVM = mult_mat4_mat4 (lPV, M);
+						glUniformMatrix4fv (dsp_PVM_loc, 1, GL_FALSE, lPVM.m);
+						//////
+						//glUniform3f (sp_c_loc, 0.2f, 0.8f, 0.2f);
 						glCullFace (GL_FRONT);
 						glDrawElements (GL_TRIANGLES, cube_mesh.pc, GL_UNSIGNED_INT, 0);
 						glCullFace (GL_BACK);
@@ -357,8 +363,9 @@ int main () {
 										-20.0f + 10.0f * (float)y,
 										-20.0f + 10.0f * (float)z
 									));
-									mat4 PVM = mult_mat4_mat4 (lPV, M);
-									glUniformMatrix4fv (dsp_PVM_loc, 1, GL_FALSE, PVM.m);
+									mat4 lPVM = mult_mat4_mat4 (lPV, M);
+									glUniformMatrix4fv (dsp_PVM_loc, 1, GL_FALSE, lPVM.m);
+									//glUniform3f (sp_c_loc, 0.2f, 0.2f, 0.8f);
 									glDrawElements (GL_TRIANGLES, cube_mesh.pc, GL_UNSIGNED_INT,
 										0);
 								}
