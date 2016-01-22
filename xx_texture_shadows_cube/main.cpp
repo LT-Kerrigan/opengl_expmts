@@ -183,51 +183,26 @@ void init_shadow_fb () {
 	// create framebuffer
 	glGenFramebuffers (1, &g_depth_fb);
 	glBindFramebuffer (GL_FRAMEBUFFER, g_depth_fb);
-
 	// create texture for framebuffer
 	glGenTextures (1, &g_depth_fb_tex);
 	glActiveTexture (GL_TEXTURE0);
 	glBindTexture (GL_TEXTURE_CUBE_MAP, g_depth_fb_tex);
-	/*glTexImage2D (
-		GL_TEXTURE_2D,
-		0,
-		GL_DEPTH_COMPONENT,
-		g_shadow_size,
-		g_shadow_size,
-		0,
-		GL_DEPTH_COMPONENT,
-		GL_FLOAT,
-		NULL
-	);*/
-	
 	for (int i = 0; i < 6; i++) {
-		glTexImage2D (GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, g_shadow_size, g_shadow_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		glTexImage2D (GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT32,
+			g_shadow_size, g_shadow_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 	}
-	
-	// bi-linear filtering might help, but might make it less accurate too
-	//glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	//glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	
-	// clamp to edge. clamp to border may reduce artifacts outside light frustum
 	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	// attach depth texture to framebuffer
-	//glFramebufferTexture2D (
-	//	GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP, g_depth_fb_tex, 0);
-
 	// tell framebuffer not to use any colour drawing outputs
 	GLenum draw_bufs[] = { GL_NONE };
 	glDrawBuffers (1, draw_bufs);
-	
 	// this *should* avoid a GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER error that
 	// comes on mac - invalid framebuffer due to having only a depth buffer and
 	// no colour buffer specified.
 	glReadBuffer (GL_NONE);
-
-	// bind default framebuffer again
 	glBindFramebuffer (GL_FRAMEBUFFER, 0);
 }
 
