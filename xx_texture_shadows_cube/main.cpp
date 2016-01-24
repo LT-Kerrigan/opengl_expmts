@@ -1,22 +1,10 @@
 /******************************************************************************\
-| OpenGL 4 Example Code.                                                       |
-| Accompanies written series "Anton's OpenGL 4 Tutorials"                      |
-| Email: anton at antongerdelan dot net                                        |
-| First version 27 Jan 2014                                                    |
 | Copyright Dr Anton Gerdelan, Trinity College Dublin, Ireland.                |
-| See individual libraries' for separate legal notices                         |
-|******************************************************************************|
-| Shadow Mapping from Williams' Algorithm                                      |
-|                                                                              |
-| controls:                                                                    |
-| pitch = up,down arrow keys                                                   |
-| yaw = left,right arrow keys                                                  |
-| roll = z,c keys                                                              |
-| move forward/back = w,s keys                                                 |
-| move left/right = a,d keys                                                   |
-|                                                                              |
-| I wrote a little Wavefront .obj loader to load a mesh from a file            |
-| It's in obj_parser.h and .cpp                                                |
+
+TODO
+* screen space quads for all 6 angles
+* find out why there's a cut-off when caster is at 10,10,0
+
 \******************************************************************************/
 #include "maths_funcs.h" // my maths functions
 #include "gl_utils.h" // common opengl functions and small utilities like logs
@@ -74,7 +62,7 @@ GLuint g_depth_fb;
 GLuint g_depth_fb_tex;
 /* unique model matrix for each sphere */
 mat4 g_sphere_Ms[NUM_SPHERES];
-vec3 light_pos (0,10,0);
+vec3 light_pos (10,10,0);
 
 void init_ground_plane () {
 	GLuint points_vbo;
@@ -118,7 +106,7 @@ void create_shadow_caster () {
 	g_caster_V[5] = look_at (light_pos, light_pos - vec3 (0,0,1), vec3 (0,1,0));
 	// create a projection matrix for the shadow caster
 	float near = 1.0f;
-	float far = 50.0f;
+	float far = 1000.0f;
 	float fov = 90.0f;
 	float aspect = 1.0f;
 	g_caster_P = perspective (fov, aspect, near, far);
@@ -191,8 +179,8 @@ void init_shadow_fb () {
 		glTexImage2D (GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT32,
 			g_shadow_size, g_shadow_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 	}
-	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -354,7 +342,7 @@ changed in the shadow casting pass */
 		
 		glUseProgram (g_plain_sp);
 		glActiveTexture (GL_TEXTURE0);
-		glBindTexture (GL_TEXTURE_2D, g_depth_fb_tex);
+		glBindTexture (GL_TEXTURE_CUBE_MAP, g_depth_fb_tex);
 		
 		/* ground plane (receives shadows) */
 		glUniform3f (g_plain_colour_loc, 0.0, 1.0, 0.0); /* green */
@@ -463,7 +451,7 @@ changed in the shadow casting pass */
 		
 		/* draw ss quad */
 		glActiveTexture (GL_TEXTURE0);
-		glBindTexture (GL_TEXTURE_2D, g_depth_fb_tex);
+		glBindTexture (GL_TEXTURE_CUBE_MAP, g_depth_fb_tex);
 		glUseProgram (g_debug_sp);
 		glBindVertexArray (g_ss_quad_vao);
 		glDrawArrays (GL_TRIANGLES, 0, g_ss_quad_point_count);
