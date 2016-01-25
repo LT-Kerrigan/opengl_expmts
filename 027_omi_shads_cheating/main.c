@@ -22,14 +22,13 @@
 #define MESH_FILE "../common/mesh/suzanne.obj"
 APG_Mesh cube_mesh;
 GLuint shader_programme, dshader_programme;
-GLint sp_PVM_loc = -1, dsp_PVM_loc = -1, sp_c_loc = -1;
-mat4 P, V, PV, g_caster_V[6], g_caster_P;
+GLint sp_P_loc = -1, sp_V_loc = - 1, sp_M_loc = -1;
+GLint dsp_P_loc = -1, dsp_V_loc = -1, dsp_M_loc = -1, sp_c_loc = -1;
+mat4 P, V, g_caster_V[6], g_caster_P;
 vec3 cam_pos;
 GLuint g_fb, g_fb_tex;
 
 static bool init_fb () {
-	glGenFramebuffers (1, &g_fb);
-	glBindFramebuffer (GL_FRAMEBUFFER, g_fb);
 	glGenTextures (1, &g_fb_tex);
 	glActiveTexture (GL_TEXTURE0);
 	glBindTexture (GL_TEXTURE_CUBE_MAP, g_fb_tex);
@@ -40,16 +39,15 @@ static bool init_fb () {
 	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	// TODO GL_R32F ?? and GL_RED
 	
-	char* d = (char*)malloc (g_gl.fb_width * g_gl.fb_height * 4);
-	memset(d, 255, g_gl.fb_width * g_gl.fb_height * 4);
-	
 	for (int i = 0; i < 6; i++) {
-		glTexImage2D (GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA,
-			g_gl.fb_width, g_gl.fb_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, d);
+		glTexImage2D (GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA8,
+			g_gl.fb_width, g_gl.fb_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 	}
-	glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-						GL_TEXTURE_CUBE_MAP, g_fb_tex, 0);
 	
+
+	glGenFramebuffers (1, &g_fb);
+	glBindFramebuffer (GL_FRAMEBUFFER, g_fb);
+
 	//glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP,
 	//	g_fb_tex, 0);
 	/* create a renderbuffer which allows depth-testing in the framebuffer */
@@ -139,18 +137,18 @@ static void init () {
 		const char* dvertex_shader =
 			"#version 430\n"
 			"in vec3 vp;"
-			"uniform mat4 PVM;"
+			"uniform mat4 P, V, M;"
 			"out vec4 p;"
 			"void main () {"
-			"  gl_Position = PVM * vec4 (vp, 1.0);"
-			"  p = gl_Position;"
+			"  gl_Position = P * V * M * vec4 (vp, 1.0);"
+			"  p = V * M * vec4 (vp, 1.0);"
 			"}";
 		const char* dfragment_shader =
 			"#version 430\n"
 			"in vec4 p;"
 			"out vec4 fc;"
 			"void main () {"
-			"  fc = vec4 (p.xyz / p.w, 1.0);"
+			"  fc = vec4 (1.0, 0.0, 0.0, 1.0);" // hack to make sure SOMETHING is writ
 			"}";
 		GLuint dvs = glCreateShader (GL_VERTEX_SHADER);
 		glShaderSource (dvs, 1, &dvertex_shader, NULL);
@@ -162,20 +160,31 @@ static void init () {
 		glAttachShader (dshader_programme, dfs);
 		glAttachShader (dshader_programme, dvs);
 		glLinkProgram (dshader_programme);
-		dsp_PVM_loc = glGetUniformLocation (dshader_programme, "PVM");
+		dsp_P_loc = glGetUniformLocation (dshader_programme, "P");
+		dsp_V_loc = glGetUniformLocation (dshader_programme, "V");
+		dsp_M_loc = glGetUniformLocation (dshader_programme, "M");
+		assert (dsp_P_loc > -1);
+		assert (dsp_V_loc > -1);
+		assert (dsp_M_loc > -1);
 		const char* vertex_shader =
 			"#version 430\n"
 			"in vec3 vp;"
-			"uniform mat4 PVM;"
+			"out vec3 p;"
+			"uniform mat4 P, V, M;"
 			"void main () {"
-			"  gl_Position = PVM * vec4 (vp, 1.0);"
+			"  gl_Position = P * V * M * vec4 (vp, 1.0);"
+			"  p = vp;"
 			"}";
 		const char* fragment_shader =
 			"#version 430\n"
+			"in vec3 p;"
 			"uniform vec3 c;"
+			"uniform samplerCube tex;"
 			"out vec4 fc;"
 			"void main () {"
 			"  fc = vec4 (c, 1.0);"
+			"  vec4 texel = texture (tex, p);"
+			"  fc = vec4 (p * 0.1 + texel.rgb, 1.0);"
 			"}";
 		GLuint vs = glCreateShader (GL_VERTEX_SHADER);
 		glShaderSource (vs, 1, &vertex_shader, NULL);
@@ -187,7 +196,9 @@ static void init () {
 		glAttachShader (shader_programme, fs);
 		glAttachShader (shader_programme, vs);
 		glLinkProgram (shader_programme);
-		sp_PVM_loc = glGetUniformLocation (shader_programme, "PVM");
+		sp_P_loc = glGetUniformLocation (shader_programme, "P");
+		sp_V_loc = glGetUniformLocation (shader_programme, "V");
+		sp_M_loc = glGetUniformLocation (shader_programme, "M");
 		sp_c_loc = glGetUniformLocation (shader_programme, "c");
 	}
 	{ // camera
@@ -197,7 +208,6 @@ static void init () {
 		V = look_at (cam_pos,
 			vec3_from_3f (0.0f, 0.0f, -1.0f),
 			vec3_from_3f (0.0f, 1.0f, 0.0f));
-		PV = mult_mat4_mat4 (P, V);
 	}
 	{ // shadow caster
 		vec3 light_pos = vec3_from_3f (0,0,0);
@@ -216,18 +226,11 @@ static void init () {
 	}
 }
 
-static void stop () {
-	stop_gl ();
-}
-
 int main () {
 	init ();
-	GLuint timer_query[2] = { 0, 0 };
-	glGenQueries (2, timer_query);
 	{ // running
 		int f_accum = 0;
 		double s_accum = 0.0;
-		double gpu_ns_accum = 0.0;
 		double prev = glfwGetTime ();
 		while (!glfwWindowShouldClose (g_gl.win)) {
 			// timers and counters
@@ -237,17 +240,13 @@ int main () {
 			s_accum += elapsed;
 			if (s_accum > 0.5 && f_accum > 0) {
 				double ms_per_frame = (s_accum / (double)f_accum) * 1000.0;
-				double gpu_ms_per_frame = (gpu_ns_accum / (double)f_accum) / 1000000.0;
-				if (ms_per_frame > 0.0 && gpu_ms_per_frame > 0) {
+				if (ms_per_frame > 0.0) {
 					double fps = 1000.0 / ms_per_frame;
-					double fps_gpu = 1000.0 / gpu_ms_per_frame;
-					char tmp[256];
-					sprintf (tmp, "CPU: %.2lfms %.0ffps GPU: %.2lfms %.0ffps \n",
-						ms_per_frame, fps, gpu_ms_per_frame, fps_gpu);
+					char tmp[1024];
+					sprintf (tmp, "CPU: %.2fms %.2ffps\n", ms_per_frame, fps);
 					glfwSetWindowTitle (g_gl.win, tmp);
 				}
 				s_accum = 0.0;
-				gpu_ns_accum = 0.0;
 				f_accum = 0;
 			}
 			{ // user input
@@ -261,7 +260,6 @@ int main () {
 						add_vec3_vec3 (cam_pos, vec3_from_3f (0.0f, 0.0f, -1.0f)),
 						vec3_from_3f (0.0f, 1.0f, 0.0f)
 					);
-					PV = mult_mat4_mat4 (P, V);
 					print_vec3 (cam_pos);
 				}
 				if (glfwGetKey (g_gl.win, GLFW_KEY_S)) {
@@ -270,7 +268,6 @@ int main () {
 						add_vec3_vec3 (cam_pos, vec3_from_3f (0.0f, 0.0f, -1.0f)),
 						vec3_from_3f (0.0f, 1.0f, 0.0f)
 					);
-					PV = mult_mat4_mat4 (P, V);
 					print_vec3 (cam_pos);
 				}
 				if (glfwGetKey (g_gl.win, GLFW_KEY_A)) {
@@ -279,7 +276,6 @@ int main () {
 						add_vec3_vec3 (cam_pos, vec3_from_3f (0.0f, 0.0f, -1.0f)),
 						vec3_from_3f (0.0f, 1.0f, 0.0f)
 					);
-					PV = mult_mat4_mat4 (P, V);
 					print_vec3 (cam_pos);
 				}
 				if (glfwGetKey (g_gl.win, GLFW_KEY_D)) {
@@ -288,7 +284,6 @@ int main () {
 						add_vec3_vec3 (cam_pos, vec3_from_3f (0.0f, 0.0f, -1.0f)),
 						vec3_from_3f (0.0f, 1.0f, 0.0f)
 					);
-					PV = mult_mat4_mat4 (P, V);
 					print_vec3 (cam_pos);
 				}
 				if (glfwGetKey (g_gl.win, GLFW_KEY_Q)) {
@@ -297,7 +292,6 @@ int main () {
 						add_vec3_vec3 (cam_pos, vec3_from_3f (0.0f, 0.0f, -1.0f)),
 						vec3_from_3f (0.0f, 1.0f, 0.0f)
 					);
-					PV = mult_mat4_mat4 (P, V);
 					print_vec3 (cam_pos);
 				}
 				if (glfwGetKey (g_gl.win, GLFW_KEY_E)) {
@@ -306,11 +300,9 @@ int main () {
 						add_vec3_vec3 (cam_pos, vec3_from_3f (0.0f, 0.0f, -1.0f)),
 						vec3_from_3f (0.0f, 1.0f, 0.0f)
 					);
-					PV = mult_mat4_mat4 (P, V);
 					print_vec3 (cam_pos);
 				}
 			}
-			glQueryCounter (timer_query[0], GL_TIMESTAMP);
 			//glDepthFunc (GL_LESS);
 			// NOTE: HAS TO GO _BEFORE_ glClear
 			//glDepthMask (GL_TRUE);
@@ -326,6 +318,11 @@ int main () {
 
 ///////////////////////////?RENDER TO CUBE MAPS HERE ?///////////////////////
 
+/// HACK always write
+//glDisable (GL_CULL_FACE);
+//				glDisable (GL_DEPTH_TEST);
+	//			glDepthMask (GL_FALSE);
+
 			glBindFramebuffer (GL_FRAMEBUFFER, g_fb);
 			glViewport (0, 0, g_gl.fb_width, g_gl.fb_height);
 
@@ -337,18 +334,17 @@ int main () {
 				for (int camd = 0; camd < 1; camd++) {
 				
 					// bind for writing
+					glBindTexture (GL_TEXTURE_CUBE_MAP, g_fb_tex);
 					glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 						GL_TEXTURE_CUBE_MAP_POSITIVE_X + camd, g_fb_tex, 0);
 					glClearColor (0.2,0.2,0.2,1.0);
 					glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-					
-					mat4 lPV = mult_mat4_mat4 (g_caster_P, g_caster_V[camd]);
+					glUniformMatrix4fv (dsp_P_loc, 1, GL_FALSE, g_caster_P.m);
+					glUniformMatrix4fv (dsp_V_loc, 1, GL_FALSE, g_caster_V[camd].m);
+
 					{ // inside-out cube
 						mat4 M = scale_mat4 (vec3_from_3f (30.0f, 30.0f, 30.0f));
-						mat4 lPVM = mult_mat4_mat4 (lPV, M);
-						glUniformMatrix4fv (dsp_PVM_loc, 1, GL_FALSE, lPVM.m);
-						//////
-						//glUniform3f (sp_c_loc, 0.2f, 0.8f, 0.2f);
+						glUniformMatrix4fv (dsp_M_loc, 1, GL_FALSE, M.m);
 						glCullFace (GL_FRONT);
 						glDrawElements (GL_TRIANGLES, cube_mesh.pc, GL_UNSIGNED_INT, 0);
 						glCullFace (GL_BACK);
@@ -363,22 +359,24 @@ int main () {
 										-20.0f + 10.0f * (float)y,
 										-20.0f + 10.0f * (float)z
 									));
-									mat4 lPVM = mult_mat4_mat4 (lPV, M);
-									glUniformMatrix4fv (dsp_PVM_loc, 1, GL_FALSE, lPVM.m);
-									//glUniform3f (sp_c_loc, 0.2f, 0.2f, 0.8f);
+									glUniformMatrix4fv (dsp_M_loc, 1, GL_FALSE, M.m);
 									glDrawElements (GL_TRIANGLES, cube_mesh.pc, GL_UNSIGNED_INT,
 										0);
 								}
 							}
 						}
 					}
+					// ANTON: note: i guess i need this?
+					glCopyTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + camd, 0, 0, 0, 0, 0, g_gl.fb_width, g_gl.fb_height);
 				} // endfor
 				//glDepthFunc (GL_LEQUAL); // because self is gonna be equal duh!
 				//glDepthMask (GL_FALSE); // disable depth writing - already done
 			}
 
-
-
+// end the HACK that makes sure the depth buffer isnt preventing writes
+//glEnable (GL_CULL_FACE);
+	//			glEnable (GL_DEPTH_TEST);
+	//			glDepthMask (GL_TRUE);
 
 ///////////////////////////?RENDER NORMALLY HERE ?///////////////////////
 
@@ -404,10 +402,18 @@ int main () {
 				glUseProgram (shader_programme);
 				glBindVertexArray (cube_mesh.vao);
 				glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, cube_mesh.vbo_indexed);
+				glUniformMatrix4fv (sp_P_loc, 1, GL_FALSE, P.m);
+				glUniformMatrix4fv (sp_V_loc, 1, GL_FALSE, V.m);
+				glActiveTexture (GL_TEXTURE0);
+				glBindTexture (GL_TEXTURE_CUBE_MAP, g_fb_tex);
+				// testing mode
+				if (glfwGetKey (g_gl.win, GLFW_KEY_SPACE)) {
+					glUniformMatrix4fv (sp_P_loc, 1, GL_FALSE, g_caster_P.m);
+					glUniformMatrix4fv (sp_V_loc, 1, GL_FALSE, g_caster_V[0].m);
+				}
 				{ // inside-out cube
 					mat4 M = scale_mat4 (vec3_from_3f (30.0f, 30.0f, 30.0f));
-					mat4 PVM = mult_mat4_mat4 (PV, M);
-					glUniformMatrix4fv (sp_PVM_loc, 1, GL_FALSE, PVM.m);
+					glUniformMatrix4fv (sp_M_loc, 1, GL_FALSE, M.m);
 					glUniform3f (sp_c_loc, 0.2f, 0.8f, 0.2f);
 					glCullFace (GL_FRONT);
 					glDrawElements (GL_TRIANGLES, cube_mesh.pc, GL_UNSIGNED_INT, 0);
@@ -423,8 +429,7 @@ int main () {
 									-20.0f + 10.0f * (float)y,
 									-20.0f + 10.0f * (float)z
 								));
-								mat4 PVM = mult_mat4_mat4 (PV, M);
-								glUniformMatrix4fv (sp_PVM_loc, 1, GL_FALSE, PVM.m);
+								glUniformMatrix4fv (sp_M_loc, 1, GL_FALSE, M.m);
 								glUniform3f (sp_c_loc, 0.2f, 0.2f, 0.8f);
 								glDrawElements (GL_TRIANGLES, cube_mesh.pc, GL_UNSIGNED_INT,
 									0);
@@ -484,20 +489,10 @@ int main () {
 				glEnable (GL_CULL_FACE);
 			}
 			glfwSwapBuffers (g_gl.win);
-			glQueryCounter (timer_query[1], GL_TIMESTAMP);
-			int gpu_timer_is_done = 0;
-			while (!gpu_timer_is_done) {
-				glGetQueryObjectiv (timer_query[1], GL_QUERY_RESULT_AVAILABLE,
-					&gpu_timer_is_done);
-			}
-			GLuint64 gpu_start_ns = 0, gpu_stop_ns = 0;
-			glGetQueryObjectui64v (timer_query[0], GL_QUERY_RESULT, &gpu_start_ns);
-			glGetQueryObjectui64v (timer_query[1], GL_QUERY_RESULT, &gpu_stop_ns);
-			gpu_ns_accum += (gpu_stop_ns - gpu_start_ns);
 			f_accum ++;
 		} // endwhile
 	} // endblock
-	stop ();
+	stop_gl ();
 	return 0;
 }
 
