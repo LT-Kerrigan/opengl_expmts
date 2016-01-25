@@ -106,19 +106,19 @@ bool start_gl () {
 			"#version 430\n"
 			"in vec2 vp;"
 			"uniform vec2 sca, pos;"
-			"out vec2 st;"
+			"out vec2 op;"
 			"void main () {"
 			"  vec2 p = vp * sca + pos;"
 			"  gl_Position = vec4 (p, 0.0, 1.0);"
-			"  st = (vp + 1.0) * 0.5;"
+			"  op = vp;"
 			"}";
 		const char* fs_str =
 			"#version 430\n"
-			"in vec2 st;"
+			"in vec2 op;"
 			"uniform samplerCube tex;"
 			"out vec4 fc;"
 			"void main () {"
-			"  fc = texture (tex, vec3 (2.0 * st - 1.0, 1.0));"
+			"  fc = texture (tex, vec3 (op, -1.0));"
 			//			"  fc = vec4 (st, 0.0, 1.0);"
 			"}";
 		g_ss_quad_shader.vs = glCreateShader (GL_VERTEX_SHADER);

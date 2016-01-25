@@ -115,7 +115,7 @@ static void init () {
 			"out vec4 p;"
 			"void main () {"
 			"  gl_Position = P * V * M * vec4 (vp, 1.0);"
-			"  p = V * M * vec4 (vp, 1.0);"
+			"  p = V * M * vec4 (vp * vp.z, 1.0);"
 			"}";
 		const char* dfragment_shader =
 			"#version 430\n"
@@ -193,7 +193,7 @@ static void init () {
 		g_caster_V[5] = look_at (light_pos, add_vec3_vec3 (light_pos, vec3_from_3f (0,0,-1)), vec3_from_3f (0,1,0));
 		// create a projection matrix for the shadow caster
 		float near = 0.1f;
-		float far = 1000.0f;
+		float far = 100.0f;
 		float fov = 90.0f; // TODO 45??
 		float aspect = 1.0f;
 		g_caster_P = perspective (fov, aspect, near, far);
@@ -293,9 +293,10 @@ int main () {
 ///////////////////////////?RENDER TO CUBE MAPS HERE ?///////////////////////
 
 /// HACK always write
-glDisable (GL_CULL_FACE);
-				glDisable (GL_DEPTH_TEST);
+//glDisable (GL_CULL_FACE);
+				//glDisable (GL_DEPTH_TEST);
 			//	glDepthMask (GL_FALSE);
+			glDepthFunc (GL_LEQUAL);
 
 			glBindFramebuffer (GL_FRAMEBUFFER, g_fb);
 			glViewport (0, 0, g_gl.fb_width, g_gl.fb_height);
@@ -351,7 +352,7 @@ glClearColor (0.2,0.2,0.2,1.0);
 glEnable (GL_CULL_FACE);
 				glEnable (GL_DEPTH_TEST);
 				glDepthMask (GL_TRUE);
-
+glDepthFunc (GL_LESS);
 ///////////////////////////?RENDER NORMALLY HERE ?///////////////////////
 
 
