@@ -118,7 +118,7 @@ bool start_gl () {
 			"uniform samplerCube tex;"
 			"out vec4 fc;"
 			"void main () {"
-			"  fc = texture (tex, vec3 (st, -1.0));"
+			"  fc = texture (tex, vec3 (2.0 * st - 1.0, 1.0));"
 			//			"  fc = vec4 (st, 0.0, 1.0);"
 			"}";
 		g_ss_quad_shader.vs = glCreateShader (GL_VERTEX_SHADER);
