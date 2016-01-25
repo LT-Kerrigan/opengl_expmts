@@ -5,13 +5,7 @@
 
 //
 // TODO:
-// 1. light with 6 view-projection matrices
-// 2, do six render-to-cube-textures
-// 3. see if working
-// 4. probably need to do light's clip->wor or just take other wor and take
-// to light's clip ??
-// 5. try again with just depth in cube map
-//
+// start with a simpler demo and build up to the bigger stuff
 
 #include "apg_maths.h"
 #include "obj_parser.h"
@@ -128,7 +122,7 @@ static void init () {
 			"in vec4 p;"
 			"out vec4 fc;"
 			"void main () {"
-			"  fc = vec4 (1.0, 0.0, 0.0, 1.0);" // hack to make sure SOMETHING is writ
+			"  fc = vec4 (p);" // hack to make sure SOMETHING is writ
 			"}";
 		GLuint dvs = glCreateShader (GL_VERTEX_SHADER);
 		glShaderSource (dvs, 1, &dvertex_shader, NULL);
@@ -159,12 +153,12 @@ static void init () {
 			"#version 430\n"
 			"in vec3 p;"
 			"uniform vec3 c;"
-			"uniform samplerCube tex;"
+		//	"uniform samplerCube tex;"
 			"out vec4 fc;"
 			"void main () {"
 			"  fc = vec4 (c, 1.0);"
-			"  vec4 texel = texture (tex, p);"
-			"  fc = vec4 (p * 0.1 + texel.rgb, 1.0);"
+		//	"  vec4 texel = texture (tex, p);"
+		//	"  fc = vec4 (texel.rgb, 1.0);"
 			"}";
 		GLuint vs = glCreateShader (GL_VERTEX_SHADER);
 		glShaderSource (vs, 1, &vertex_shader, NULL);
@@ -299,11 +293,11 @@ int main () {
 ///////////////////////////?RENDER TO CUBE MAPS HERE ?///////////////////////
 
 /// HACK always write
-//glDisable (GL_CULL_FACE);
-//				glDisable (GL_DEPTH_TEST);
-	//			glDepthMask (GL_FALSE);
+glDisable (GL_CULL_FACE);
+				glDisable (GL_DEPTH_TEST);
+			//	glDepthMask (GL_FALSE);
 
-			glBindFramebuffer (GL_DRAW_FRAMEBUFFER, g_fb);
+			glBindFramebuffer (GL_FRAMEBUFFER, g_fb);
 			glViewport (0, 0, g_gl.fb_width, g_gl.fb_height);
 glClearColor (0.2,0.2,0.2,1.0);
 					glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -347,16 +341,16 @@ glClearColor (0.2,0.2,0.2,1.0);
 						}
 					}
 					// ANTON: note: i guess i need this?
-					glCopyTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + camd, 0, 0, 0, 0, 0, g_gl.fb_width, g_gl.fb_height);
+					//glCopyTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + camd, 0, 0, 0, 0, 0, g_gl.fb_width, g_gl.fb_height);
 				} // endfor
 				//glDepthFunc (GL_LEQUAL); // because self is gonna be equal duh!
 				//glDepthMask (GL_FALSE); // disable depth writing - already done
 			}
 
 // end the HACK that makes sure the depth buffer isnt preventing writes
-//glEnable (GL_CULL_FACE);
-	//			glEnable (GL_DEPTH_TEST);
-	//			glDepthMask (GL_TRUE);
+glEnable (GL_CULL_FACE);
+				glEnable (GL_DEPTH_TEST);
+				glDepthMask (GL_TRUE);
 
 ///////////////////////////?RENDER NORMALLY HERE ?///////////////////////
 
