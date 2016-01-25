@@ -331,7 +331,7 @@ int main () {
 				glBindVertexArray (cube_mesh.vao);
 				glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, cube_mesh.vbo_indexed);
 			
-				for (int camd = 0; camd < 1; camd++) {
+				for (int camd = 0; camd < 6; camd++) {
 				
 					// bind for writing
 					glBindTexture (GL_TEXTURE_CUBE_MAP, g_fb_tex);
