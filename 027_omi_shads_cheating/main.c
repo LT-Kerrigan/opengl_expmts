@@ -29,59 +29,39 @@ vec3 cam_pos;
 GLuint g_fb, g_fb_tex;
 
 static bool init_fb () {
-	glGenTextures (1, &g_fb_tex);
-	glActiveTexture (GL_TEXTURE0);
-	glBindTexture (GL_TEXTURE_CUBE_MAP, g_fb_tex);
-	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	// TODO GL_R32F ?? and GL_RED
-	
-	for (int i = 0; i < 6; i++) {
-		glTexImage2D (GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA8,
-			g_gl.fb_width, g_gl.fb_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-	}
-	
+	int width = 1024, height = 1024;
+	printf ("cube face w %i h %i\n", width, height);
 
 	glGenFramebuffers (1, &g_fb);
 	glBindFramebuffer (GL_FRAMEBUFFER, g_fb);
 
-	//glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP,
-	//	g_fb_tex, 0);
-	/* create a renderbuffer which allows depth-testing in the framebuffer */
-#ifdef FBFBSHSDGSDGSDG
-	GLuint g_depth_fb_tex;
-	glGenTextures (1, &g_depth_fb_tex);
-	glBindTexture (GL_TEXTURE_2D, g_depth_fb_tex);
-	glTexImage2D (
-		GL_TEXTURE_2D,
-		0,
-		GL_DEPTH_COMPONENT,
-		g_gl.fb_width,
-		g_gl.fb_height,
-		0,
-		GL_DEPTH_COMPONENT,
-		GL_UNSIGNED_BYTE,
-		NULL
-	);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glFramebufferTexture2D (
-		GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, g_depth_fb_tex, 0);
-#endif
-GLuint depthbuff;
-	glGenRenderbuffers(1, &depthbuff);
-        glBindRenderbuffer(GL_RENDERBUFFER, depthbuff);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, g_gl.fb_width, g_gl.fb_height);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, g_fb);
-
-	/* tell the framebuffer to expect a colour output attachment (our texture) */
-	GLenum draw_bufs[] = { GL_COLOR_ATTACHMENT0 };
-	glDrawBuffers (1, draw_bufs);
+	glGenTextures (1, &g_fb_tex);
+	glBindTexture (GL_TEXTURE_CUBE_MAP, g_fb_tex);
+	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_REPEAT);
+	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	for (int camd = 0; camd < 6; camd++) {
+		glTexImage2D (GL_TEXTURE_CUBE_MAP_POSITIVE_X + camd, 0, GL_RGBA,
+			width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+			GL_TEXTURE_CUBE_MAP_POSITIVE_X + camd, g_fb_tex, 0);
+	}
+	GLuint depthtex;
+	glGenTextures (1, &depthtex);
+	glBindTexture (GL_TEXTURE_CUBE_MAP, depthtex);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	for (int camd = 0; camd < 6; camd++) {
+		glTexImage2D (GL_TEXTURE_CUBE_MAP_POSITIVE_X + camd, 0, GL_DEPTH_COMPONENT,
+			width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+		glFramebufferTexture2D (GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+			GL_TEXTURE_CUBE_MAP_POSITIVE_X + camd, depthtex, 0);
+	}
 	
 	/* validate the framebuffer - an 'incomplete' error tells us if an invalid
 	image format is attached or if the glDrawBuffers information is invalid */
@@ -323,9 +303,10 @@ int main () {
 //				glDisable (GL_DEPTH_TEST);
 	//			glDepthMask (GL_FALSE);
 
-			glBindFramebuffer (GL_FRAMEBUFFER, g_fb);
+			glBindFramebuffer (GL_DRAW_FRAMEBUFFER, g_fb);
 			glViewport (0, 0, g_gl.fb_width, g_gl.fb_height);
-
+glClearColor (0.2,0.2,0.2,1.0);
+					glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			{ // depth render pass
 				glUseProgram (dshader_programme);
 				glBindVertexArray (cube_mesh.vao);
@@ -337,8 +318,7 @@ int main () {
 					glBindTexture (GL_TEXTURE_CUBE_MAP, g_fb_tex);
 					glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 						GL_TEXTURE_CUBE_MAP_POSITIVE_X + camd, g_fb_tex, 0);
-					glClearColor (0.2,0.2,0.2,1.0);
-					glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+					
 					glUniformMatrix4fv (dsp_P_loc, 1, GL_FALSE, g_caster_P.m);
 					glUniformMatrix4fv (dsp_V_loc, 1, GL_FALSE, g_caster_V[camd].m);
 
