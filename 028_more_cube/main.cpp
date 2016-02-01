@@ -282,6 +282,7 @@ vec3 light_pos = vec3 (0.0,0.0,0.0);
 	int monkey_M_location = glGetUniformLocation (monkey_sp, "M");
 	int monkey_V_location = glGetUniformLocation (monkey_sp, "V");
 	int monkey_P_location = glGetUniformLocation (monkey_sp, "P");
+	int monkey_cam_pos_wor_location = glGetUniformLocation (monkey_sp, "cam_pos_wor");
 	
 	// cube-map shaders
 	GLuint cube_sp = create_programme_from_files (
@@ -450,6 +451,8 @@ vec3 light_pos = vec3 (0.0,0.0,0.0);
 		glUseProgram (monkey_sp);
 		glUniformMatrix4fv (monkey_V_location, 1, GL_FALSE, view_mat.m);
 		glUniformMatrix4fv (monkey_P_location, 1, GL_FALSE, proj_mat.m);
+		glUniform3f (monkey_cam_pos_wor_location, cam_pos.v[0], cam_pos.v[1],
+			cam_pos.v[2]);
 		glBindVertexArray (vao);
 		float tx = sinf ((float)current_seconds);
 		model_mat = translate (identity_mat4 (), vec3 (5.0, 1.0 + tx, 0.0));
