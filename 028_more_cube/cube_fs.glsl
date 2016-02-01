@@ -16,7 +16,7 @@ void main () {
 	// and add bias
 	float l = length (texcoords - light_pos_wor);
 	if (texel > 0.0) {
-		frag_colour.rgb *= 0.2;
+		frag_colour.rgb *= 0.5;
 	}
 
 	//frag_colour.rgb = vec3 (texel,texel,texel);

@@ -10,6 +10,11 @@ Notes:
 * not sure if depth map /must/ be a cube also, but im sure it helps
 * projections write upside-down into cube texture (sigh)
 * can fix projection writing by inverting "up" axis for projection cam
+* 4096px shadow map + 6*multisampling was required to look nice
+
+TODO:
+* try with opengl 2.1 interface and renderbuffer instead of depth textures
+* try with 2d depth texture instead of cube texture
 
 \*****************************************************************************/
 
@@ -45,7 +50,7 @@ Notes:
 // keep track of window size for things like the viewport and the mouse cursor
 int g_gl_width = 640;
 int g_gl_height = 480;
-int g_cube_map_dims = 1024; // 1880fps@2048px, 3900@1024px, 5800@512px
+int g_cube_map_dims = 4096; // 1880fps@2048px, 3900@1024px, 5800@512px
 GLFWwindow* g_window = NULL;
 
 /* big cube. returns Vertex Array Object */

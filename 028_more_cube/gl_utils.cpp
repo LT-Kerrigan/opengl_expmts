@@ -164,7 +164,7 @@ bool parse_file_into_str (
 	const char* file_name, char* shader_str, int max_len
 ) {
 	shader_str[0] = '\0'; // reset string
-	FILE* file = fopen (file_name , "r");
+	FILE* file = fopen (file_name , "rb");
 	if (!file) {
 		gl_log_err ("ERROR: opening file for reading: %s\n", file_name);
 		return false;
