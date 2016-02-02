@@ -1,3 +1,8 @@
+// note: glCheckFramebufferStatus is not in 2.1??!
+// better do an extension check
+
+
+
 /*****************************************************************************\                                               |
 | Copyright Dr Anton Gerdelan, Trinity College Dublin, Ireland.               |
 
@@ -57,7 +62,7 @@ Notes:
 // keep track of window size for things like the viewport and the mouse cursor
 int g_gl_width = 640;
 int g_gl_height = 480;
-int g_cube_map_dims = 4096; // 1880fps@2048px, 3900@1024px, 5800@512px
+int g_cube_map_dims = 512; // 1880fps@2048px, 3900@1024px, 5800@512px
 GLFWwindow* g_window = NULL;
 
 /* big cube. returns Vertex Array Object */
@@ -215,6 +220,32 @@ void init_fb (GLuint tex) {
 	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (status != GL_FRAMEBUFFER_COMPLETE) {
 		fprintf (stderr, "ERROR FB incomplete\n");
+		switch (status) {
+			case GL_FRAMEBUFFER_UNDEFINED: {
+				printf ("GL_FRAMEBUFFER_UNDEFINED\n");
+			break; }
+			// this can mean:
+			// 1. texture w & h not equal for cube sides
+			// 2. texture dims are bigger than max size supported
+			case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT: {
+        printf ("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT\n");
+      break; }
+			case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER: {
+        printf ("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER\n");
+      break; }
+			case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER: {
+        printf ("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER\n");
+      break; }
+			case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE: {
+        printf ("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE\n");
+      break; }
+			case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS: {
+        printf ("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS\n");
+      break; }
+			default: {
+				printf ("??? code is %i\n", (int)status);
+			}
+		}
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
