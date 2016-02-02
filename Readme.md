@@ -34,6 +34,9 @@ projects, and volatile software.
 | 024     | hmap_terrain | the traditional heighmapped terrain demo                     | working |
 | 025     | depth_antioverdraw | http://fabiensanglard.net/doom3/renderer.php           | started... |
 | 026     | x11_cube | software 3d renderer built on X11 (not opengl)                   | working |
+| 027     | omni_shads_cheating | omni-directional shadows with cubemap texture         | unstable |
+| 028     | more_cube | second pass at shadow mapping with cubemap textures             | working |
+| 029     | more_cube_gl_2_1 | opengl 2.1 port of omni-directional shadows              | working |
 | xxx     | fresnel_prism | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
 | xxx     | apg_glh | custom alternative to glew / gl headers setup                     | proposed |
 | xxx     | wu_line | wu's line drawing algorithm (pseudo on wiki)                      | proposed |
