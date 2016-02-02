@@ -62,7 +62,7 @@ Notes:
 // keep track of window size for things like the viewport and the mouse cursor
 int g_gl_width = 640;
 int g_gl_height = 480;
-int g_cube_map_dims = 512; // 1880fps@2048px, 3900@1024px, 5800@512px
+int g_cube_map_dims = 4096; // 1880fps@2048px, 3900@1024px, 5800@512px
 GLFWwindow* g_window = NULL;
 
 /* big cube. returns Vertex Array Object */
@@ -133,12 +133,12 @@ bool load_cube_map_side (GLuint texture, GLenum side_target,
 	glTexImage2D (
 		side_target,
 		0,
-		GL_RGBA,
+		GL_RGBA16,
 		g_cube_map_dims,
 		g_cube_map_dims,
 		0,
-		GL_RGBA, // think this is the right way around (didnt work swapped around)
-		GL_UNSIGNED_BYTE, // unsigned byte only goes from 0 to 255!
+		GL_RED, // think this is the right way around (didnt work swapped around)
+		GL_INT, // unsigned byte only goes from 0 to 255!
 		NULL
 	);
 
@@ -359,7 +359,6 @@ vec3 light_pos = vec3 (0.0,0.0,0.0);
 	glEnable (GL_CULL_FACE); // cull face
 	glCullFace (GL_BACK); // cull back face
 	glFrontFace (GL_CCW); // set counter-clock-wise vertex order to mean the front
-	glClearColor (0.2, 0.2, 0.2, 1.0); // grey background to help spot mistakes
 	glViewport (0, 0, g_gl_width, g_gl_height);
 	
 /*-------------------------------RENDERING LOOP-------------------------------*/
@@ -377,7 +376,7 @@ vec3 light_pos = vec3 (0.0,0.0,0.0);
 			
 			glViewport (0, 0, g_cube_map_dims, g_cube_map_dims);
 			glClearColor (0.0,0.0,0.0,1.0);
-			
+			glFrontFace (GL_CW); 
 
 			// TODO use shader to write into texture
 			// BUT dont draw the big cube because it'll hall-of-mirrors up in here
@@ -455,7 +454,9 @@ vec3 light_pos = vec3 (0.0,0.0,0.0);
 		}
 		
 		glViewport (0, 0, g_gl_width, g_gl_height);
+		glClearColor (0.2, 0.2, 0.2, 1.0); // grey background to help spot mistakes
 		glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glFrontFace (GL_CCW); 
 		
 		// render a sky-box using the cube-map texture
 		glDepthMask (GL_FALSE);

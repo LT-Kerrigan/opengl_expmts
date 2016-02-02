@@ -13,8 +13,9 @@ void main () {
 	// TODO for self-shadows
 	// if length is CLOSER than own 1d distance to light -->shadow, else not
 	// and add bias
-	float l = length (texcoords - light_pos_wor);
-	if (texel > 0.0) {
+	//float l = length (texcoords - light_pos_wor);
+	float unpacking_factor = 100.0;
+	if (texel * unpacking_factor > 0.0) {
 		gl_FragColor.rgb *= 0.5;
 	}
 }
