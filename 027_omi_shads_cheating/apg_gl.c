@@ -39,87 +39,6 @@ APG_GL_Context g_gl;
 GLuint ss_quad_tristrip_vao;
 APG_Shader g_ss_quad_shader;
 
-void _debug_gl_callback (unsigned int source, unsigned int type, unsigned int id, unsigned int severity,
-	int length, const char* message, const void* userParam) {
-	char src_str[2048], type_str[2048], sev_str[2048];
-	switch (source) {
-		case 0x8246: {
-			strncpy  (src_str, "API", 2048);
-		break; }
-		case 0x8247: {
-			strncpy (src_str, "WINDOW_SYSTEM", 2048);
-		break; }
-		case 0x8248: {
-			strncpy (src_str, "SHADER_COMPILER", 2048);
-		break; }
-		case 0x8249: {
-			strncpy (src_str, "THIRD_PARTY", 2048);
-		break; }
-		case 0x824A: {
-			strncpy (src_str, "APPLICATION", 2048);
-		break; }
-		case 0x824B: {
-			strncpy (src_str, "OTHER", 2048);
-		break; }
-		default: {
-			strncpy (src_str, "undefined", 2048);
-		break; }
-	}
-	switch (type) {
-		case 0x824C: {
-			strncpy (type_str, "ERROR", 2048);
-		break; }
-		case 0x824D: {
-			strncpy (type_str, "DEPRECATED_BEHAVIOR", 2048);
-		break; }
-		case 0x824E: {
-			strncpy (type_str, "UNDEFINED_BEHAVIOR", 2048);
-		break; }
-		case 0x824F: {
-			strncpy (type_str, "PORTABILITY", 2048);
-		break; }
-		case 0x8250: {
-			// strncpy (type_str, "PERFORMANCE", 2048);
-			return; // ignore these messages
-		break; }
-		case 0x8251: {
-			strncpy (type_str, "OTHER", 2048);
-		break; }
-		case 0x8268: {
-			strncpy (type_str, "MARKER", 2048);
-		break; }
-		case 0x8269: {
-			strncpy (type_str, "PUSH_GROUP", 2048);
-		break; }
-		case 0x826A: {
-			strncpy (type_str, "POP_GROUP", 2048);
-		break; }
-		default: {
-			strncpy (type_str, "undefined", 2048);
-		break; }
-	}
-	switch (severity) {
-		case 0x9146: {
-			strncpy (sev_str, "HIGH", 2048);
-		break; }
-		case 0x9147: {
-			strncpy (sev_str, "MEDIUM", 2048);
-		break; }
-		case 0x9148: {
-			strncpy (sev_str, "LOW", 2048);
-		break; }
-		case 0x826B: {
-			//strncpy (sev_str, "NOTIFICATION", 2048);
-			return; // ignore these messages
-		break; }
-		default: {
-			strncpy (sev_str, "undefined", 2048);
-		break; }
-	}
-	fprintf (stderr, "src: %s type: %s id: %u severity: %s len: %i msg: %s\n",
-		src_str, type_str, id, sev_str, length, message);
-}
-
 static void win_resize_cb (GLFWwindow* win, int width, int height) {
 	g_gl.win_width = width;
 	g_gl.win_height = height;
@@ -171,12 +90,6 @@ bool start_gl () {
 		printf ("OpenGL %s\n", version);
 	}
 	{
-		int param = 69;
-		glDebugMessageCallbackARB (_debug_gl_callback, &param);
-		glEnable (GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
-		printf ("~~~~DEBUG OUTPUT EXTENSION ENGAGED!~~~~\n");
-	}
-	{
 		glGenVertexArrays (1, &ss_quad_tristrip_vao);
 		glBindVertexArray (ss_quad_tristrip_vao);
 		GLuint points_vbo;
@@ -193,23 +106,20 @@ bool start_gl () {
 			"#version 430\n"
 			"in vec2 vp;"
 			"uniform vec2 sca, pos;"
-			"out vec2 st;"
+			"out vec2 op;"
 			"void main () {"
 			"  vec2 p = vp * sca + pos;"
 			"  gl_Position = vec4 (p, 0.0, 1.0);"
-			"  st = (vp + 1.0) * 0.5;"
+			"  op = vp;"
 			"}";
 		const char* fs_str =
 			"#version 430\n"
-			"in vec2 st;"
+			"in vec2 op;"
 			"uniform samplerCube tex;"
 			"out vec4 fc;"
 			"void main () {"
-			"  fc = textureCube (tex, vec3 ("
-			"    2.0 * st.s - 1.0,"
-			"    -2.0 * st.t + 1.0,"
-			"    -1.0"
-			"  ));"
+			"  fc = texture (tex, vec3 (op, -1.0));"
+			//			"  fc = vec4 (st, 0.0, 1.0);"
 			"}";
 		g_ss_quad_shader.vs = glCreateShader (GL_VERTEX_SHADER);
 		glShaderSource (g_ss_quad_shader.vs, 1, &vs_str, NULL);
