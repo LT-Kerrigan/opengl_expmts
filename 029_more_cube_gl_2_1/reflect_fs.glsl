@@ -50,11 +50,12 @@ void main () {
 	vec3 spec = vec3 (0.7, 0.7, 0.7);
 
 	// note: texcoords are also world position of cube verts/frags
-	float l = length (texcoords - light_pos_wor);
+	vec3 dir = texcoords - light_pos_wor;
+	float l = length (dir);
 	float shad_f = 1.0;
 
 	{ // shadow cube single sample version
-		shad_f = shad (l, texcoords);
+		shad_f = shad (l, dir);
 	}
 /*
 	{ // blurred v
