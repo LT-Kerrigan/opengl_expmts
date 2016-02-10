@@ -16,4 +16,7 @@ int main () {
 	printf ("vector ext test\n");
 	a = foo ((vec3){5.0f,6.0f, 7.0f}, 8.0f);
 	printf ("%f %f %f %f\n", a.x, a.y, a.z, a.w);
+	vec4 c = a + (vec4){2,2,2,2};
+	printf ("%f %f %f %f\n", c.x, c.y, c.z, c.w);
+
 }
