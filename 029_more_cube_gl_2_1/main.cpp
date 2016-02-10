@@ -62,7 +62,7 @@ Notes:
 // keep track of window size for things like the viewport and the mouse cursor
 int g_gl_width = 640;
 int g_gl_height = 480;
-int g_cube_map_dims = 4096; // 1880fps@2048px, 3900@1024px, 5800@512px
+int g_cube_map_dims = 512; // 1880fps@2048px, 3900@1024px, 5800@512px
 GLFWwindow* g_window = NULL;
 
 /* big cube. returns Vertex Array Object */
@@ -133,12 +133,12 @@ bool load_cube_map_side (GLuint texture, GLenum side_target,
 	glTexImage2D (
 		side_target,
 		0,
-		GL_RGBA16,
+		GL_RGBA32F,
 		g_cube_map_dims,
 		g_cube_map_dims,
 		0,
 		GL_RED, // think this is the right way around (didnt work swapped around)
-		GL_INT, // unsigned byte only goes from 0 to 255!
+		GL_FLOAT, // unsigned byte only goes from 0 to 255!
 		NULL
 	);
 
