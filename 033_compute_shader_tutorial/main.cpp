@@ -12,10 +12,31 @@ layout (local_size_x = 1, local_size_y = 1) in;\n                             \
 layout (rgba32f, binding = 0) uniform image2D img_output;\n                   \
 \n                                                                            \
 void main () {\n                                                              \
-  vec4 texel = vec4 (0.0, 0.0, 0.0, 1.0);\n                                   \
-  ivec2 p = ivec2 (gl_GlobalInvocationID.xy);\n                               \
+  vec4 pixel = vec4 (0.0, 0.0, 0.0, 1.0);\n                                   \
+  ivec2 pixel_coords = ivec2 (gl_GlobalInvocationID.xy);\n                    \
 \n                                                                            \
-  imageStore (img_output, p, texel);\n                                        \
+#define RES 512.0 // image resolution\n                                       \
+float max_x = 5.0;\n                                                          \
+float max_y = 5.0;\n                                                          \
+float x = (float(pixel_coords.x * 2 - RES) / RES);\n                          \
+float y = (float(pixel_coords.y * 2 - RES) / RES);\n                          \
+vec3 ray_o = vec3 (x * max_x, y * max_y, 0.0);\n                              \
+vec3 ray_d = vec3 (0.0, 0.0, -1.0); // ortho\n                                \
+\n                                                                            \
+vec3 sphere_c = vec3 (0.0, 0.0, -10.0);                                       \
+float sphere_r = 1.0;                                                         \
+\n                                                                            \
+vec3 omc = ray_o - sphere_c;\n                                                \
+float b = dot (ray_d, omc);\n                                                 \
+float c = dot (omc, omc) - sphere_r * sphere_r;\n                             \
+float bsqmc = b * b - c;\n                                                    \
+float t = 10000.0;\n                                                          \
+// hit one or both sides\n                                                    \
+if (bsqmc >= 0.0) {\n                                                         \
+  pixel = vec4 (0.4, 0.4, 1.0, 1.0);\n                                        \
+}\n                                                                           \
+\n                                                                            \
+  imageStore (img_output, pixel_coords, pixel);\n                             \
 }\n";
 
 int main () {
@@ -60,23 +81,31 @@ int main () {
 	
 	{ // query up the workgroups
 		int work_grp_size[3], work_grp_inv;
+		// maximum global work group (total work in a dispatch)
+		glGetIntegeri_v (GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_size[0]);
+		glGetIntegeri_v (GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_size[1]);
+		glGetIntegeri_v (GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &work_grp_size[2]);
+		printf ("max global (total) work group size x:%i y:%i z:%i\n",
+			work_grp_size[0], work_grp_size[1], work_grp_size[2]);
+		// maximum local work group (one shader's slice)
 		glGetIntegeri_v (GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
 		glGetIntegeri_v (GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
 		glGetIntegeri_v (GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
-		printf ("max local work group sizes x:%i y:%i z:%i\n",
+		printf ("max local (in one shader) work group sizes x:%i y:%i z:%i\n",
 			work_grp_size[0], work_grp_size[1], work_grp_size[2]);
-		// TODO what is this again?
+		// maximum compute shader invocations (x * y * z)
 		glGetIntegerv (GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
-		printf ("max local work group invocations (volume) %i\n", work_grp_inv);
-		// TODO quit if workgroup size < chosen texture dims
+		printf ("max computer shader invocations %i\n", work_grp_inv);
 	}
 	
 	while (!glfwWindowShouldClose (window)) { // drawing loop
-		// do the ray thing every so often
-		{ // TODO put timers in
+		{ // launch compute shaders!
 			glUseProgram (ray_program);
-			glDispatchCompute (tex_w, tex_h, 1);
+			glDispatchCompute ((GLuint)tex_w, (GLuint)tex_h, 1);
 		}
+		
+		glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		
 		glClear (GL_COLOR_BUFFER_BIT);
 		glUseProgram (quad_program);
 		glBindVertexArray (quad_vao);
