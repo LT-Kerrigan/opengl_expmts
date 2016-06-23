@@ -1,3 +1,5 @@
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <stdio.h>
@@ -7,6 +9,7 @@
 GLFWwindow* g_win;
 GLuint g_vao_tri;
 GLuint g_shadprog;
+GLuint g_tex_cube;
 
 void init_gl(){
 	{
@@ -34,6 +37,9 @@ void init_gl(){
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LESS);
 		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+		//glEnable (GL_CULL_FACE);
+		//glCullFace (GL_BACK);
+		//glFrontFace (GL_CCW);
 	}
 }
 
@@ -41,14 +47,52 @@ void free_gl(){ glfwTerminate(); }
 
 void init_geom() {
 	float points[] = {
-		 0.0f,  0.5f,  0.0f,
-		 0.5f, -0.5f,  0.0f,
-		-0.5f, -0.5f,  0.0f
+		-10.0f,  10.0f, -10.0f,
+		-10.0f, -10.0f, -10.0f,
+		 10.0f, -10.0f, -10.0f,
+		 10.0f, -10.0f, -10.0f,
+		 10.0f,  10.0f, -10.0f,
+		-10.0f,  10.0f, -10.0f,
+		
+		-10.0f, -10.0f,  10.0f,
+		-10.0f, -10.0f, -10.0f,
+		-10.0f,  10.0f, -10.0f,
+		-10.0f,  10.0f, -10.0f,
+		-10.0f,  10.0f,  10.0f,
+		-10.0f, -10.0f,  10.0f,
+		
+		 10.0f, -10.0f, -10.0f,
+		 10.0f, -10.0f,  10.0f,
+		 10.0f,  10.0f,  10.0f,
+		 10.0f,  10.0f,  10.0f,
+		 10.0f,  10.0f, -10.0f,
+		 10.0f, -10.0f, -10.0f,
+		 
+		-10.0f, -10.0f,  10.0f,
+		-10.0f,  10.0f,  10.0f,
+		 10.0f,  10.0f,  10.0f,
+		 10.0f,  10.0f,  10.0f,
+		 10.0f, -10.0f,  10.0f,
+		-10.0f, -10.0f,  10.0f,
+		
+		-10.0f,  10.0f, -10.0f,
+		 10.0f,  10.0f, -10.0f,
+		 10.0f,  10.0f,  10.0f,
+		 10.0f,  10.0f,  10.0f,
+		-10.0f,  10.0f,  10.0f,
+		-10.0f,  10.0f, -10.0f,
+		
+		-10.0f, -10.0f, -10.0f,
+		-10.0f, -10.0f,  10.0f,
+		 10.0f, -10.0f, -10.0f,
+		 10.0f, -10.0f, -10.0f,
+		-10.0f, -10.0f,  10.0f,
+		 10.0f, -10.0f,  10.0f
 	};
 	GLuint vbo = 0;
 	glGenBuffers (1, &vbo);
 	glBindBuffer (GL_ARRAY_BUFFER, vbo);
-	glBufferData (GL_ARRAY_BUFFER, 9 * sizeof (float), points, GL_STATIC_DRAW);
+	glBufferData (GL_ARRAY_BUFFER, 3 * 36 * sizeof (float), points, GL_STATIC_DRAW);
 	glGenVertexArrays (1, &g_vao_tri);
 	glBindVertexArray (g_vao_tri);
 	glEnableVertexAttribArray (0);
@@ -88,15 +132,19 @@ void init_shaders() {
 	const char* vertex_shader =
 		"#version 300 es\n"
 		"in vec3 vp;"
-		"void main () {"
-		"  gl_Position = vec4 (vp, 1.0);"
+		"out vec3 texcoords;"
+		"void main(){"
+		"  texcoords = vec3(vp.x, vp.y, 1.0 - vp.z);"
+		"  gl_Position = vec4(vp * 0.1, 1.0);"
 		"}";
 	const char* fragment_shader =
 		"#version 300 es\n"
 		"precision mediump float;" // need this
+		"in vec3 texcoords;"
+		"uniform samplerCube cube_texture;"
 		"out vec4 frag_colour;"
-		"void main () {"
-		"  frag_colour = vec4 (0.5, 0.0, 0.5, 1.0);"
+		"void main(){"
+		"  frag_colour = texture(cube_texture, texcoords);"
 		"}";
 	GLuint vs = glCreateShader (GL_VERTEX_SHADER);
 	glShaderSource (vs, 1, &vertex_shader, NULL);
@@ -113,13 +161,67 @@ void init_shaders() {
 void draw_scene(){
 	glUseProgram (g_shadprog);
   glBindVertexArray (g_vao_tri);
-  glDrawArrays (GL_TRIANGLES, 0, 3);
+  glDepthMask (GL_FALSE);
+	glActiveTexture (GL_TEXTURE0);
+	glBindTexture (GL_TEXTURE_CUBE_MAP, g_tex_cube);
+	glDrawArrays (GL_TRIANGLES, 0, 36);
+	glDepthMask (GL_TRUE);
+}
+
+bool load_cube_map_side(GLuint texture, GLenum side_target, const char* file_name){
+  glBindTexture (GL_TEXTURE_CUBE_MAP, texture);
+  int x, y, n;
+  int force_channels = 4;
+  unsigned char*  image_data = stbi_load (file_name, &x, &y, &n, force_channels);
+  if (!image_data) {
+    fprintf (stderr, "ERROR: could not load %s\n", file_name);
+    return false;
+  }
+  if ((x & (x - 1)) != 0 || (y & (y - 1)) != 0) {
+    fprintf (stderr, "WARNING: image %s is not power-of-2 dimensions\n", file_name);
+  }
+  glTexImage2D(side_target, 0, GL_RGBA, x, y, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+  free (image_data);
+  return true;
+}
+
+void create_cube_map(
+	const char* front,
+	const char* back,
+	const char* top,
+  const char* bottom,
+  const char* left,
+  const char* right,
+  GLuint* tex_cube){
+  glActiveTexture(GL_TEXTURE0);
+  glGenTextures(1, tex_cube);
+  load_cube_map_side(*tex_cube, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, front);
+  load_cube_map_side(*tex_cube, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, back);
+  load_cube_map_side(*tex_cube, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, top);
+  load_cube_map_side(*tex_cube, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, bottom);
+  load_cube_map_side(*tex_cube, GL_TEXTURE_CUBE_MAP_NEGATIVE_X, left);
+  load_cube_map_side(*tex_cube, GL_TEXTURE_CUBE_MAP_POSITIVE_X, right);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
 int main(){
 	init_gl();
 	init_geom();
 	init_shaders();
+	fprintf(stderr, "loading cube textures...\n");
+	create_cube_map(
+		"textures/posz.jpg",
+		"textures/negz.jpg",
+		"textures/posy.jpg",
+		"textures/negy.jpg",
+		"textures/negx.jpg",
+		"textures/posx.jpg",
+		&g_tex_cube);
+	fprintf(stderr, "cube loaded\n");
 	while(!glfwWindowShouldClose(g_win)) {
 		{
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -139,3 +241,4 @@ int main(){
 	free_gl();
 	return 0;
 }
+

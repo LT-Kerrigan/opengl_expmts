@@ -1,7 +1,7 @@
 BIN = vrdemo
 CC = g++
 FLAGS = -Wall -pedantic -m64 -g
-I = -I ../common/include
+I = -I ../common/include -I src/
 L = ../common/lin64
 STA_LIBS = ${L}/libGLEW.a ${L}/libglfw3.a
 DYN_LIBS = -lGL -lX11 -lXxf86vm -lXrandr -lpthread -lXi -lXinerama -lXcursor \
