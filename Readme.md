@@ -39,6 +39,10 @@ projects, and volatile software.
 | 029     | more_cube_gl_2_1    | opengl 2.1 port of omni-directional shadows           | working   |
 | 030     | clang_vectors       | using clang vector extension data types               | started   |
 | 031     | gcc_vectors         | using gcc vector extension data types                 | started   |
+| 032     | vulkan_hw           | vulkan skeleton | started |
+| 033     | compute_shader      | compute shader play-around | working |
+| 034     | switching_costs     | measuring opengl state switching costs | working |
+| 035     | vrdemo              | virtual reality framework for Cardboard | started |
 | xxx     | fresnel_prism       | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
 | xxx     | apg_glh             | custom alternative to glew / gl headers setup         | proposed  |
 | xxx     | wu_line             | wu's line drawing algorithm (pseudo on wiki)          | proposed  |
