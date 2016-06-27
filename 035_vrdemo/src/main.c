@@ -1,8 +1,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
+#include "camera.h"
+#include "mesh.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <stdio.h>
+#include <stdbool.h>
 #define VP_WIDTH 1136
 #define VP_HEIGHT 640
 
@@ -10,6 +13,10 @@ GLFWwindow* g_win;
 GLuint g_vao_tri;
 GLuint g_shadprog;
 GLuint g_tex_cube;
+GLint P_loc, V_loc, M_loc;
+Mesh g_mesh;
+mat4 g_globe_M;
+float g_globe_yrot;
 
 void init_gl(){
 	{
@@ -37,16 +44,16 @@ void init_gl(){
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LESS);
 		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
-		//glEnable (GL_CULL_FACE);
-		//glCullFace (GL_BACK);
-		//glFrontFace (GL_CCW);
+		glEnable (GL_CULL_FACE);
+		glCullFace (GL_BACK);
+		glFrontFace (GL_CCW);
 	}
 }
 
 void free_gl(){ glfwTerminate(); }
 
 void init_geom() {
-	float points[] = {
+	/*float points[] = {
 		-10.0f,  10.0f, -10.0f,
 		-10.0f, -10.0f, -10.0f,
 		 10.0f, -10.0f, -10.0f,
@@ -88,11 +95,12 @@ void init_geom() {
 		 10.0f, -10.0f, -10.0f,
 		-10.0f, -10.0f,  10.0f,
 		 10.0f, -10.0f,  10.0f
-	};
+	};*/
+	g_mesh = load_ascii_stl ("meshes/sphere.stl");
 	GLuint vbo = 0;
 	glGenBuffers (1, &vbo);
 	glBindBuffer (GL_ARRAY_BUFFER, vbo);
-	glBufferData (GL_ARRAY_BUFFER, 3 * 36 * sizeof (float), points, GL_STATIC_DRAW);
+	glBufferData (GL_ARRAY_BUFFER, g_mesh.vcount * 3 * sizeof (float), g_mesh.vps, GL_STATIC_DRAW);
 	glGenVertexArrays (1, &g_vao_tri);
 	glBindVertexArray (g_vao_tri);
 	glEnableVertexAttribArray (0);
@@ -132,10 +140,11 @@ void init_shaders() {
 	const char* vertex_shader =
 		"#version 300 es\n"
 		"in vec3 vp;"
+		"uniform mat4 P, V, M;"
 		"out vec3 texcoords;"
 		"void main(){"
-		"  texcoords = vec3(vp.x, vp.y, 1.0 - vp.z);"
-		"  gl_Position = vec4(vp * 0.1, 1.0);"
+		"  texcoords = vec3(vp.x, vp.y, vp.z);"
+		"  gl_Position = P * V * M * vec4(vp * 0.1, 1.0);"
 		"}";
 	const char* fragment_shader =
 		"#version 300 es\n"
@@ -146,26 +155,35 @@ void init_shaders() {
 		"void main(){"
 		"  frag_colour = texture(cube_texture, texcoords);"
 		"}";
-	GLuint vs = glCreateShader (GL_VERTEX_SHADER);
-	glShaderSource (vs, 1, &vertex_shader, NULL);
+	GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vs, 1, &vertex_shader, NULL);
 	compile_shader(vs);
-	GLuint fs = glCreateShader (GL_FRAGMENT_SHADER);
+	GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource (fs, 1, &fragment_shader, NULL);
 	compile_shader(fs);
-	g_shadprog = glCreateProgram ();
-	glAttachShader (g_shadprog, fs);
-	glAttachShader (g_shadprog, vs);
-	link_program (g_shadprog);
+	g_shadprog = glCreateProgram();
+	glAttachShader(g_shadprog, fs);
+	glAttachShader(g_shadprog, vs);
+	link_program(g_shadprog);
+	P_loc = glGetUniformLocation(g_shadprog, "P");
+	assert(P_loc > -1);
+	V_loc = glGetUniformLocation(g_shadprog, "V");
+	assert(V_loc > -1);
+	M_loc = glGetUniformLocation(g_shadprog, "M");
+	assert(V_loc > -1);
 }
 
-void draw_scene(){
+void draw_scene(Camera cam){
 	glUseProgram (g_shadprog);
+	glUniformMatrix4fv(P_loc, 1, GL_FALSE, cam.P.m);
+	glUniformMatrix4fv(V_loc, 1, GL_FALSE, cam.V.m);
+	glUniformMatrix4fv(M_loc, 1, GL_FALSE, g_globe_M.m);
   glBindVertexArray (g_vao_tri);
-  glDepthMask (GL_FALSE);
+  //glDepthMask (GL_FALSE);
 	glActiveTexture (GL_TEXTURE0);
 	glBindTexture (GL_TEXTURE_CUBE_MAP, g_tex_cube);
-	glDrawArrays (GL_TRIANGLES, 0, 36);
-	glDepthMask (GL_TRUE);
+	glDrawArrays (GL_TRIANGLES, 0, g_mesh.vcount);
+	//glDepthMask (GL_TRUE);
 }
 
 bool load_cube_map_side(GLuint texture, GLenum side_target, const char* file_name){
@@ -211,11 +229,13 @@ void create_cube_map(
 int main(){
 	init_gl();
 	init_geom();
+	Camera cam = default_cam();
+	g_globe_M = identity_mat4();
 	init_shaders();
 	fprintf(stderr, "loading cube textures...\n");
 	create_cube_map(
-		"textures/posz.jpg",
 		"textures/negz.jpg",
+		"textures/posz.jpg",
 		"textures/posy.jpg",
 		"textures/negy.jpg",
 		"textures/negx.jpg",
@@ -226,15 +246,37 @@ int main(){
 		{
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glViewport(0, 0, VP_WIDTH / 2, VP_HEIGHT);
-			draw_scene();
+			draw_scene(cam);
 			glViewport(VP_WIDTH / 2, 0, VP_WIDTH / 2, VP_HEIGHT);
-			draw_scene();
+			draw_scene(cam);
 			glfwSwapBuffers(g_win);
 		}
 		{
 			glfwPollEvents();
-			if (GLFW_PRESS == glfwGetKey (g_win, GLFW_KEY_ESCAPE)) {
-				glfwSetWindowShouldClose (g_win, 1);
+			if (GLFW_PRESS == glfwGetKey(g_win, GLFW_KEY_ESCAPE)) {
+				glfwSetWindowShouldClose(g_win, 1);
+			}
+			/*if (GLFW_PRESS == glfwGetKey(g_win, GLFW_KEY_W)) {
+				vec3 mv;
+				mv.x = 0.0;
+				mv.y = 0.0f;
+				mv.z = -0.1f;
+				cam_move(&cam, mv);
+			}
+			if (GLFW_PRESS == glfwGetKey(g_win, GLFW_KEY_S)) {
+				vec3 mv;
+				mv.x = 0.0;
+				mv.y = 0.0f;
+				mv.z = 0.1f;
+				cam_move(&cam, mv);
+			}*/
+			if (GLFW_PRESS == glfwGetKey(g_win, GLFW_KEY_A)) {
+				g_globe_yrot += 1.0f;
+				g_globe_M = rot_y_deg_mat4(g_globe_yrot);
+			}
+			if (GLFW_PRESS == glfwGetKey(g_win, GLFW_KEY_D)) {
+				g_globe_yrot -= 1.0f;
+				g_globe_M = rot_y_deg_mat4(g_globe_yrot);
 			}
 		}
 	}
