@@ -2,6 +2,7 @@
 #include "stb/stb_image.h"
 #include "camera.h"
 #include "mesh.h"
+#include "text.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <stdio.h>
@@ -17,6 +18,9 @@ GLint P_loc, V_loc, M_loc;
 Mesh g_mesh;
 mat4 g_globe_M;
 float g_globe_yrot;
+Font g_font;
+GLuint first_string_vp_vbo, first_string_vt_vbo, first_string_vao;
+int first_string_points = 0;
 
 void init_gl(){
 	{
@@ -47,6 +51,7 @@ void init_gl(){
 		glEnable (GL_CULL_FACE);
 		glCullFace (GL_BACK);
 		glFrontFace (GL_CCW);
+		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 }
 
@@ -178,12 +183,22 @@ void draw_scene(Camera cam){
 	glUniformMatrix4fv(P_loc, 1, GL_FALSE, cam.P.m);
 	glUniformMatrix4fv(V_loc, 1, GL_FALSE, cam.V.m);
 	glUniformMatrix4fv(M_loc, 1, GL_FALSE, g_globe_M.m);
-  glBindVertexArray (g_vao_tri);
-  //glDepthMask (GL_FALSE);
+	glBindVertexArray (g_vao_tri);
 	glActiveTexture (GL_TEXTURE0);
 	glBindTexture (GL_TEXTURE_CUBE_MAP, g_tex_cube);
 	glDrawArrays (GL_TRIANGLES, 0, g_mesh.vcount);
-	//glDepthMask (GL_TRUE);
+	{
+		glActiveTexture (GL_TEXTURE0);
+		glBindTexture (GL_TEXTURE_2D, g_font.texture);
+		glUseProgram (g_font.shader_prog);
+		glDisable (GL_DEPTH_TEST);
+		glEnable (GL_BLEND);
+		glBindVertexArray (first_string_vao);
+		glUniform4f (g_font.sp_text_colour_loc, 1.0, 0.0, 1.0, 1.0);
+		glDrawArrays (GL_TRIANGLES, 0, first_string_points);
+		glEnable (GL_DEPTH_TEST);
+		glDisable (GL_BLEND);
+	}
 }
 
 bool load_cube_map_side(GLuint texture, GLenum side_target, const char* file_name){
@@ -242,6 +257,33 @@ int main(){
 		"textures/posx.jpg",
 		&g_tex_cube);
 	fprintf(stderr, "cube loaded\n");
+	{
+		g_font = load_font("atlas.png", "atlas.meta");
+		glGenBuffers (1, &first_string_vp_vbo);
+		glGenBuffers (1, &first_string_vt_vbo);
+		float x_pos = -0.75f;
+		float y_pos = 0.2f;
+		float pixel_scale = 190.0f;
+		const char first_str[] = "Hello World VR!";
+		text_to_vbo (
+			first_str,
+			g_font,
+			VP_WIDTH, VP_HEIGHT,
+			x_pos, y_pos,
+			pixel_scale,
+			&first_string_vp_vbo,
+			&first_string_vt_vbo,
+			&first_string_points
+		);
+		glGenVertexArrays (1, &first_string_vao);
+		glBindVertexArray (first_string_vao);
+		glBindBuffer (GL_ARRAY_BUFFER, first_string_vp_vbo);
+		glVertexAttribPointer (0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+		glEnableVertexAttribArray (0);
+		glBindBuffer (GL_ARRAY_BUFFER, first_string_vt_vbo);
+		glVertexAttribPointer (1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+		glEnableVertexAttribArray (1);
+	}
 	while(!glfwWindowShouldClose(g_win)) {
 		{
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
