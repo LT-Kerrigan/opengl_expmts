@@ -52,3 +52,7 @@ projects, and volatile software.
 ## acknowledgements
 
 * some models from [Stanford Computer Graphics Laboratory](http://graphics.stanford.edu/data/3Dscanrep/)
+
+## Cool Thing to Try
+
+* http://www.codersnotes.com/notes/untonemapping/
