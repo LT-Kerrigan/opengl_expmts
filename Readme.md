@@ -44,6 +44,7 @@ projects, and volatile software.
 | 034     | switching_costs     | measuring opengl state switching costs | working |
 | 035     | vrdemo              | virtual reality framework for Cardboard | started |
 | 036     | pano2cube           | converts Streetview app panorama to cube map textures | working |
+| 037     | bsp                 | binary space partitioning demo                        | started |
 | xxx     | fresnel_prism       | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
 | xxx     | apg_glh             | custom alternative to glew / gl headers setup         | proposed  |
 | xxx     | wu_line             | wu's line drawing algorithm (pseudo on wiki)          | proposed  |
