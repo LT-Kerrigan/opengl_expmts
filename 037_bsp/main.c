@@ -15,10 +15,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct BSP_Tree_Node BSP_Tree_Node;
 
-typdef struct BSP_List{
+typedef struct BSP_List{
 	int items[128];
 	int count;
 }BSP_List;
@@ -33,7 +34,7 @@ struct BSP_Tree_Node{
 bool add_to_list(BSP_List* list, int index){
 	assert(list);
 	if(list->count >= 128 || list->count < 0){
-		fprinf(stderr, "ERROR: list full\n");
+		fprintf(stderr, "ERROR: list full\n");
 		return false;
 	}
 	list->items[list->count] = index;
@@ -53,7 +54,7 @@ BSP_Tree_Node* create_bsp(BSP_List* list){
 
 int main(){
 	BSP_List original_list;
-	memset(original_list->items, -1, 128);
+	memset(original_list.items, -1, 128);
 
 	BSP_Tree_Node* root = create_bsp(&original_list);
 
