@@ -25,6 +25,30 @@
 #include <stdlib.h>	// malloc()
 #include <string.h>	// memset()
 
+#define MAX_LINES 256
+
+//
+// a wall from the floor-plan map
+typedef struct Line {
+	// start and end points of wall in 2d
+	float start_x, start_y;
+	float end_x, end_y;
+
+	// the facing direction as a 2d unit vector
+	// could also have been an angle in e.g. degrees
+	float normal_x, normal_y;
+
+	//
+	// TODO could add height information here or
+	// derive from a second room/sector struct
+} Line;
+
+// here's the map as an array of walls. i'll keep this and then each
+// BSP working list or node will just index into this so that i don't
+// have to copy lots of wall data around
+Line g_map_lines[MAX_LINES];
+int g_map_line_count;
+
 // counter to check how many nodes are in the tree
 int g_nodes_in_tree;
 
@@ -45,18 +69,6 @@ struct BSP_Tree_Node {
 	// this is a binary tree with up to 2 children
 	BSP_Tree_Node *child_infront, *child_behind;
 };
-
-//
-// a wall
-typedef struct Line {
-	// start and end points of wall in 2d
-	float start_x, start_y;
-	float end_x, end_y;
-
-	// the facing direction as a 2d unit vector
-	// could also have been an angle in e.g. degrees
-	float normal_x, normal_y;
-} Line;
 
 //
 // add a line (wall) to a list of unsorted lines
@@ -81,7 +93,7 @@ BSP_Tree_Node *create_bsp( BSP_List list ) {
 	}
 	BSP_Tree_Node *root = NULL;
 	root = (BSP_Tree_Node *)malloc( sizeof( BSP_Tree_Node ) );
-	root->line_index = -1;
+	root->line_index = list.items[0]; // NOTE: pop 0 off list now! TODO
 	root->child_infront = NULL;
 	root->child_behind = NULL;
 	g_nodes_in_tree++;
@@ -97,17 +109,44 @@ BSP_Tree_Node *create_bsp( BSP_List list ) {
 	return root;
 }
 
+void print_bsp( BSP_Tree_Node* node ){
+	if(!node) {
+		return;
+	}
+	printf("%i\n", node->line_index);
+	print_bsp( node->child_infront );
+	print_bsp( node->child_behind );
+}
+
 int main() {
-	// My map is just a list of walls
-	// I'll hard-code the walls manually first
+	{ // Hard-code some walls in the map
+		g_map_lines[0].start_x = -10.0f;
+		g_map_lines[0].end_x = -10.0f;
+		g_map_lines[0].start_y = 10.0f;
+		g_map_lines[0].end_y = -10.0f;
+		g_map_lines[0].normal_x = 1.0f;
+		g_map_lines[0].normal_y = 0.0f;
+
+		g_map_line_count = 1;
+	}
+
+	// I'll hard-code the walls manually first, then my working BSP_Lists are just lists
+	// of indices into the full map of walls
 	BSP_List original_list;
 	{ // reset the list and then add some walls
 		original_list.count = 0;
 		memset( original_list.items, -1, 128 ); // i'll use index -1 to mean nothing
-	}
-	BSP_Tree_Node *root = create_bsp( original_list );
 
+		add_to_list(&original_list, 0);
+	}
+
+	//
+	// the whole tree is created here. i keep track of the root node with a pointer.
+	BSP_Tree_Node *root = create_bsp( original_list );
 	printf( "tree created with %i nodes\n", g_nodes_in_tree );
+
+	// print entire tree from root
+	print_bsp( root );
 
 	return 0;
 }
