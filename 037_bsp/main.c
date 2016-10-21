@@ -93,33 +93,44 @@ BSP_Tree_Node *create_bsp( BSP_List list ) {
 	}
 	BSP_Tree_Node *root = NULL;
 	root = (BSP_Tree_Node *)malloc( sizeof( BSP_Tree_Node ) );
-	root->line_index = list.items[0]; // NOTE: pop 0 off list now! TODO
-	root->child_infront = NULL;
-	root->child_behind = NULL;
+	root->line_index = list.items[0];
 	g_nodes_in_tree++;
 
 	//
-	// TODO -- create 2 new lists for infront and behind
-	//
+	// create 2 new lists for infront and behind
+	BSP_List infront_list, behind_list;
+	infront_list.count = 0;
+	memset( infront_list.items, -1, 128 );
+	behind_list.count = 0;
+	memset( behind_list.items, -1, 128 );
+
+	// starting at index 1 because we just used index 0
+	for ( int i = 1; i < list.count; i++ ) {
+		// TODO check if each line is in front or behind the root
+
+	}
 
 	//
-	// TODO -- recurse here with new lists
-	//
+	// recurse here with new lists
+	root->child_infront = create_bsp( infront_list );
+	root->child_behind = create_bsp( behind_list );
 
 	return root;
 }
 
-void print_bsp( BSP_Tree_Node* node ){
-	if(!node) {
+//
+// recursive tree printing function
+void print_bsp( BSP_Tree_Node *node ) {
+	if ( !node ) {
 		return;
 	}
-	printf("%i\n", node->line_index);
+	printf( "%i\n", node->line_index );
 	print_bsp( node->child_infront );
 	print_bsp( node->child_behind );
 }
 
 int main() {
-	{ // Hard-code some walls in the map
+	{ // Hard-code some walls in the map (this will be a function later)
 		g_map_lines[0].start_x = -10.0f;
 		g_map_lines[0].end_x = -10.0f;
 		g_map_lines[0].start_y = 10.0f;
@@ -127,17 +138,34 @@ int main() {
 		g_map_lines[0].normal_x = 1.0f;
 		g_map_lines[0].normal_y = 0.0f;
 
-		g_map_line_count = 1;
+		g_map_lines[1].start_x = 10.0f;
+		g_map_lines[1].end_x = 10.0f;
+		g_map_lines[1].start_y = 10.0f;
+		g_map_lines[1].end_y = -10.0f;
+		g_map_lines[1].normal_x = -1.0f;
+		g_map_lines[1].normal_y = 0.0f;
+
+		g_map_lines[2].start_x = -5.0f;
+		g_map_lines[2].end_x = 5.0f;
+		g_map_lines[2].start_y = 0.0f;
+		g_map_lines[2].end_y = 0.0f;
+		g_map_lines[2].normal_x = 0.0f;
+		g_map_lines[2].normal_y = 1.0f;
+
+		g_map_line_count = 3;
 	}
 
-	// I'll hard-code the walls manually first, then my working BSP_Lists are just lists
-	// of indices into the full map of walls
+	//
+	// add all the walls to the 'original BSP_List'
+	// BSP_Lists are just lists of indices into the full map of walls
 	BSP_List original_list;
 	{ // reset the list and then add some walls
 		original_list.count = 0;
 		memset( original_list.items, -1, 128 ); // i'll use index -1 to mean nothing
 
-		add_to_list(&original_list, 0);
+		add_to_list( &original_list, 0 );
+		add_to_list( &original_list, 1 );
+		add_to_list( &original_list, 2 );
 	}
 
 	//
