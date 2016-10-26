@@ -5,6 +5,20 @@
 // compile on linux 64-bit:
 // gcc -o demo main.c gl_utils.c GL/glew.c lib/linux64/libglfw3.a -lGL -std=c99 -lX11 -lXxf86vm -lm -lpthread -ldl -lXrandr -lXcursor -lXinerama
 
+/* further notes:
+great explanation of doom's renderer here:
+http://fabiensanglard.net/doomIphone/doomClassicRenderer.php
+* great video under visplanes
+
+-doom actually renders near-to-far (except transparent walls and 'things')
+-visplanes split map into large chunks
+-bsp sorts walls in order, and only closest 256 are drawn.
+-frustum culling eliminates out-of-scene walls
+-floats rarely used as FPUs not common in CPUs of 1993
+-lookup table converts angles of x,y things from player to screen space pos
+*/
+
+
 #include "includes.h"
 #include "gl_utils.h"
 #include "linmath.h"
