@@ -1,7 +1,7 @@
 //
-// Binary Space Partitioning demo
-// 1st v. Dr Anton Gerdelan 20 Oct 2016 <gerdela@scss.tcd.ie>
-// Written in C99
+// Binary Space Partitioning Demo
+// First v 20 Oct 2016  - Anton Gerdelan <gerdela@scss.tcd.ie>
+// Complete rewrite 26 Oct 2016
 //
 // Summary of algorithm:
 // 1. pick any line/wall/polygon to be 'root' node
@@ -18,163 +18,189 @@
 //   some root wall. I won't bother with this yet - I'll just default to in-front in
 //   this case.
 //
-
-#include <assert.h>	// assert()
-#include <stdbool.h> // bool data type
-#include <stdio.h>	 // printf()
-#include <stdlib.h>	// malloc()
-#include <string.h>	// memset()
-
-#define MAX_LINES 256
-
+// Compile:
+// gcc -o bsp main.c -std=c99 -lm
 //
-// a wall from the floor-plan map
-typedef struct Line {
-	// start and end points of wall in 2d
+
+#include <stdio.h>	 //NULL and printf
+#include <assert.h>	//assert
+#include <stdlib.h>	//malloc
+#include <stdbool.h> //bool data type (only need this in C99)
+#include <math.h> //sqrt
+
+// a wall as part of a 2d map
+typedef struct Wall {
 	float start_x, start_y;
 	float end_x, end_y;
+} Wall;
 
-	// the facing direction as a 2d unit vector
-	// could also have been an angle in e.g. degrees
-	float normal_x, normal_y;
+// Map: from -10 to 10 on each axis
+//-10    0    10
+//              // 
+// x     x-----x// -10
+// |     |////////
+// |     x-----x//   0
+// |           |//
+// x           x//  10
+//              //
 
-	//
-	// TODO could add height information here or
-	// derive from a second room/sector struct
-} Line;
-
-// here's the map as an array of walls. i'll keep this and then each
-// BSP working list or node will just index into this so that i don't
-// have to copy lots of wall data around
-Line g_map_lines[MAX_LINES];
-int g_map_line_count;
-
-// counter to check how many nodes are in the tree
-int g_nodes_in_tree;
-
-typedef struct BSP_Tree_Node BSP_Tree_Node;
-
-//
-// lists of walls that are not yet sorted into tree nodes
-// this should be dynamic memory but i will do the lazy way first
-typedef struct BSP_List {
-	int items[128];
-	int count;
-} BSP_List;
+// global array of walls in map - this a constant array. probably you would
+// load these from a file into a dynamic array instead
+// i'm using an 'initialiser list' to define each wall in the array
+Wall g_walls[5] = {
+	{.start_x = -10.0f, .start_y = 10.0f, .end_x = -10.0f, .end_y = -10.0f }, // left wall
+	{.start_x = 10.0f, .start_y = -10.0f, .end_x = 0.0f, .end_y = -10.0f }, // top right
+	{.start_x = 0.0f, .start_y = -10.0f, .end_x = 0.0f, .end_y = 0.0f }, // linked to top right
+	{.start_x = 0.0f, .start_y = 0.0f, .end_x = 10.0f, .end_y = 0.0f }, // linked to bottom right
+	{.start_x = 10.0f, .start_y = 0.0f, .end_x = 10.0f, .end_y = 10.0f } // bottom right wall
+};
+int g_num_walls = 5;
 
 //
-// this is a struct for a node in my BSP tree
-struct BSP_Tree_Node {
-	int line_index;
-	// this is a binary tree with up to 2 children
-	BSP_Tree_Node *child_infront, *child_behind;
+// should create BSP tree:
+//
+//             0
+//            / \
+//           1
+//          / \
+//             2
+//            / \
+//               3
+//              / \
+//             4
+//
+
+// a node in the BSP tree
+// declared ahead of struct because it will have node pointers
+typedef struct BSP_Node BSP_Node;
+struct BSP_Node {
+	int wall_index;
+	BSP_Node *ahead_ptr;
+	BSP_Node *behind_ptr;
 };
 
-//
-// add a line (wall) to a list of unsorted lines
-bool add_to_list( BSP_List *list, int index ) {
-	assert( list );
-	if ( list->count >= 128 || list->count < 0 ) {
-		fprintf( stderr, "ERROR: list full\n" );
-		return false;
-	}
-	list->items[list->count] = index;
-	list->count++;
-	return true;
-}
+// recursive function to build a tree from a list of wall indices
+// delcared ahead of definition because it's recursive
+// returns pointer to root node for tree (or sub-tree) or NULL
+BSP_Node *create_bsp( int *walls_list, int num_walls );
 
-//
-// recursively create a tree from a list of lines
-// this could also be a loop of course - better for bigger maps
-BSP_Tree_Node *create_bsp( BSP_List list ) {
-	// if nothing left to sort - break out of recursion
-	if ( list.count == 0 ) {
-		return NULL;
-	}
-	BSP_Tree_Node *root = NULL;
-	root = (BSP_Tree_Node *)malloc( sizeof( BSP_Tree_Node ) );
-	root->line_index = list.items[0];
-	g_nodes_in_tree++;
-
-	//
-	// create 2 new lists for infront and behind
-	BSP_List infront_list, behind_list;
-	infront_list.count = 0;
-	memset( infront_list.items, -1, 128 );
-	behind_list.count = 0;
-	memset( behind_list.items, -1, 128 );
-
-	// starting at index 1 because we just used index 0
-	for ( int i = 1; i < list.count; i++ ) {
-		// TODO check if each line is in front or behind the root
-
-	}
-
-	//
-	// recurse here with new lists
-	root->child_infront = create_bsp( infront_list );
-	root->child_behind = create_bsp( behind_list );
-
-	return root;
-}
-
-//
-// recursive tree printing function
-void print_bsp( BSP_Tree_Node *node ) {
-	if ( !node ) {
-		return;
-	}
-	printf( "%i\n", node->line_index );
-	print_bsp( node->child_infront );
-	print_bsp( node->child_behind );
-}
+int g_nodes_in_tree;
 
 int main() {
-	{ // Hard-code some walls in the map (this will be a function later)
-		g_map_lines[0].start_x = -10.0f;
-		g_map_lines[0].end_x = -10.0f;
-		g_map_lines[0].start_y = 10.0f;
-		g_map_lines[0].end_y = -10.0f;
-		g_map_lines[0].normal_x = 1.0f;
-		g_map_lines[0].normal_y = 0.0f;
 
-		g_map_lines[1].start_x = 10.0f;
-		g_map_lines[1].end_x = 10.0f;
-		g_map_lines[1].start_y = 10.0f;
-		g_map_lines[1].end_y = -10.0f;
-		g_map_lines[1].normal_x = -1.0f;
-		g_map_lines[1].normal_y = 0.0f;
-
-		g_map_lines[2].start_x = -5.0f;
-		g_map_lines[2].end_x = 5.0f;
-		g_map_lines[2].start_y = 0.0f;
-		g_map_lines[2].end_y = 0.0f;
-		g_map_lines[2].normal_x = 0.0f;
-		g_map_lines[2].normal_y = 1.0f;
-
-		g_map_line_count = 3;
+	// create initial list of indices to walls (could also have copied the
+	// walls around directly)
+	int *walls_list = (int *)malloc( sizeof( int ) * g_num_walls );
+	for ( int i = 0; i < g_num_walls; i++ ) {
+		walls_list[i] = i;
 	}
 
-	//
-	// add all the walls to the 'original BSP_List'
-	// BSP_Lists are just lists of indices into the full map of walls
-	BSP_List original_list;
-	{ // reset the list and then add some walls
-		original_list.count = 0;
-		memset( original_list.items, -1, 128 ); // i'll use index -1 to mean nothing
+	// build the BSP tree from the list of walls
+	BSP_Node *root = create_bsp( walls_list, g_num_walls );
 
-		add_to_list( &original_list, 0 );
-		add_to_list( &original_list, 1 );
-		add_to_list( &original_list, 2 );
-	}
-
-	//
-	// the whole tree is created here. i keep track of the root node with a pointer.
-	BSP_Tree_Node *root = create_bsp( original_list );
-	printf( "tree created with %i nodes\n", g_nodes_in_tree );
-
-	// print entire tree from root
-	print_bsp( root );
+	printf( "BSP tree created with %i nodes\n", g_nodes_in_tree );
 
 	return 0;
+}
+
+// returns true if a wall is in front of another wall based on normal
+bool is_wall_ahead_of( int candidate_wall_index, int root_wall_index ) {
+	// work out mid-point of candidate wall and root wall
+	// note: a proper implementation would check if the entire wall is ahead or behind
+	// the line created by the root wall and split any wall that crosses over
+	// maybe i'll do that later!
+	float candidate_x_avg = 0.5f * ( g_walls[candidate_wall_index].end_x +
+																	 g_walls[candidate_wall_index].start_x );
+	float candidate_y_avg = 0.5f * ( g_walls[candidate_wall_index].end_y +
+																	 g_walls[candidate_wall_index].start_y );
+
+	float root_x_avg =
+		0.5f * ( g_walls[root_wall_index].end_x + g_walls[root_wall_index].start_x );
+	float root_y_avg =
+		0.5f * ( g_walls[root_wall_index].end_y + g_walls[root_wall_index].start_y );
+
+	// get 2d distance vector from root to candidate
+	float x_dist = candidate_x_avg - root_x_avg;
+	float y_dist = candidate_y_avg - root_y_avg;
+	// normalise the distance vector into a direction vector (make it length 1)
+	float length = sqrt( x_dist * x_dist + y_dist * y_dist );
+	// avoid divide by 0 error
+	if (length < 0.01) {
+		fprintf(stderr, "WARNING: two walls are on top of each other! - distance 0\n");
+		return false;
+	}
+	float x_dir = x_dist / length;
+	float y_dir = y_dist / length;
+
+	// work out normal of root --i'll assume 'forward' is to the right when end is at
+	// the top:
+	//
+	//    start_x,y
+	//        |
+	//        |-> normal            end_x,y-----------start_x,y
+	//        |                                 |
+	//     end_x,y                           normal
+	//
+
+	//find direction of own line first
+	float x_own_dist = g_walls[root_wall_index].end_x - g_walls[root_wall_index].start_x;
+	float y_own_dist = g_walls[root_wall_index].end_y - g_walls[root_wall_index].start_y;
+	float own_length = sqrt( x_own_dist * x_own_dist + y_own_dist * y_own_dist );
+	float normal_x = -(y_own_dist / own_length);
+	float normal_y = (x_own_dist / own_length);
+
+	// do dot product of root's normal with the direction vector
+	float dot_prod = x_dir * normal_x + y_dir * normal_y;
+
+	// if >= 0 then vectors are within 90 degrees of each other so it's ahead,
+	if ( dot_prod > 0.0f ) {
+		printf("dot prod = %f .: %i is in front of %i\n", dot_prod, candidate_wall_index, root_wall_index);
+		return true;
+	}
+	// otherwise behind
+	printf("dot prod = %f .: %i is BEHIND %i\n", dot_prod, candidate_wall_index, root_wall_index);
+	return false;
+}
+
+BSP_Node *create_bsp( int *walls_list, int num_walls ) {
+	// stop recursion if list is empty
+	if ( num_walls < 1 ) {
+		return NULL;
+	}
+	// deliberately crash with line number message if pointer is NULL to let me know I
+	// made a coding mistake
+	assert( walls_list );
+
+	// allocate heap memory for new node
+	BSP_Node *node = (BSP_Node *)malloc( sizeof( BSP_Node ) );
+	// i'll just always use the first wall in the input list as the
+	// new root wall
+	node->wall_index = walls_list[0];
+	g_nodes_in_tree++;
+
+	// i allocate more memory than I'll need here to simplify things
+	int *ahead_list = (int *)malloc( sizeof( int ) * num_walls );
+	int *behind_list = (int *)malloc( sizeof( int ) * num_walls );
+
+	// sort input list into 2 new output lists; behind and ahead
+	int num_ahead_walls = 0, num_behind_walls = 0;
+	// starting at 1 because 0 is our root wall for this subtree
+	for ( int i = 1; i < num_walls; i++ ) {
+		if ( is_wall_ahead_of( walls_list[i], node->wall_index ) ) {
+			ahead_list[num_ahead_walls++] = walls_list[i];
+		} else {
+			behind_list[num_behind_walls++] = walls_list[i];
+		}
+	}
+
+	// recurse for both childen of node - each gets its own sub-list
+	node->ahead_ptr = create_bsp( ahead_list, num_ahead_walls );
+	node->behind_ptr = create_bsp( behind_list, num_behind_walls );
+
+	// free memory from lists
+	free( ahead_list );
+	free( behind_list );
+
+	// return root of this sub-tree
+	return node;
 }
