@@ -11,6 +11,8 @@ http://fabiensanglard.net/doomIphone/doomClassicRenderer.php
 * great video under visplanes
 
 -doom actually renders near-to-far (except transparent walls and 'things')
+ in columns of pixels (scanline algorithm)
+ when a column is filled -> done. no more drawing there. free occlusion cull.
 -visplanes split map into large chunks
 -bsp sorts walls in order, and only closest 256 are drawn.
 -frustum culling eliminates out-of-scene walls
