@@ -1,12 +1,10 @@
 //
-// "Storm My Castle!" - OpenGL stuff
+// OpenGL stuff
 // first v. 2016 by Dr Anton Gerdelan
 // C99
 //
 
 #include "gl_utils.h"
-
-// TODO SRGB option for texture load/create
 
 #define glog printf
 #define glog_err printf
@@ -91,11 +89,17 @@ bool init_gl() {
 		glog_err( "ERROR: starting GLFW\n" );
 		return false;
 	}
+
 #ifdef APPLE
 	glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 3 );
 	glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 2 );
 	glfwWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
 	glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
+#endif
+#ifdef CRAPPY_LAPTOP
+	printf("crappy laptop mode engaged\n");
+	glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 2 );
+	glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 1 );
 #endif
 	// (note on mesa with "vblank_mode=0 ./castle")
 	// 16x=7.7ms (full size also about 0.2ms slower than 0)
@@ -124,7 +128,7 @@ bool init_gl() {
 		return false;
 	}
 	glDepthFunc( GL_LESS );
-	glDisable( GL_DEPTH_TEST );
+	glEnable( GL_DEPTH_TEST );
 	glDisable( GL_CULL_FACE );
 	//glCullFace( GL_BACK );
 	//glFrontFace( GL_CCW );

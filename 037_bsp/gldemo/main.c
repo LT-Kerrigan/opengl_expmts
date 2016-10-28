@@ -4,6 +4,11 @@
 //
 // compile on linux 64-bit:
 // gcc -o demo main.c gl_utils.c GL/glew.c lib/linux64/libglfw3.a -lGL -std=c99 -lX11 -lXxf86vm -lm -lpthread -ldl -lXrandr -lXcursor -lXinerama
+//
+// run with ./demo
+// * press space bar to toggle number of walls to draw/traverse
+//
+
 
 /* further notes:
 great explanation of doom's renderer here:
@@ -27,12 +32,17 @@ http://fabiensanglard.net/doomIphone/doomClassicRenderer.php
 
 #define WALL_COUNT 6
 int draw_count = 1;
+int g_drawn_so_far = 0;
 
 GLuint wall_vao, wall_vbo;
 GLuint globoshader;
 GLint colour_loc;
 
-void draw_wall(float start_x, float start_y, float end_x, float end_y, int unique_id) {
+bool draw_wall(float start_x, float start_y, float end_x, float end_y, int unique_id) {
+	if (g_drawn_so_far >= draw_count) {
+		return false;
+	}
+	g_drawn_so_far++;
 	
 	//5,0-4
 	// |\|
@@ -80,6 +90,7 @@ void draw_wall(float start_x, float start_y, float end_x, float end_y, int uniqu
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 
+	return true;
 }
 
 int main(){
@@ -126,14 +137,7 @@ int main(){
 	mat4 P = perspective( 69.0, aspect, 0.1, 100.0 );
 
 	// globoshader here
-
-/* TODO
- 400 -> 120
- in/out -> attrib, varying, gl_FragColor
- 
- vao extension for 2.1
- */
-    
+#ifdef APPLE
 	const char* vertex_shader =
 "#version 400\n"
 "in vec3 vp;"
@@ -141,7 +145,6 @@ int main(){
 "void main() {"
 "  gl_Position = P * V * vec4(vp, 1.0);"
 "}";
-
 	const char* fragment_shader =
 "#version 400\n"
 "uniform vec3 colour;"
@@ -149,6 +152,23 @@ int main(){
 "void main() {"
 "  frag_colour = vec4(colour, 1.0);"
 "}";
+#endif
+	// these are OpenGL 2.1 shaders so that they run on my crappy demo laptop
+#ifdef CRAPPY_LAPTOP
+	const char* vertex_shader =
+"#version 120\n"
+"attribute vec3 vp;"
+"uniform mat4 P, V;"
+"void main() {"
+"  gl_Position = P * V * vec4(vp, 1.0);"
+"}";
+	const char* fragment_shader =
+"#version 120\n"
+"uniform vec3 colour;"
+"void main() {"
+"  gl_FragColor = vec4(colour, 1.0);"
+"}";
+#endif
 
 	GLuint vs = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vs, 1, &vertex_shader, NULL);
@@ -193,7 +213,8 @@ int main(){
 		{
 			glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 		
-			// TODO call BSP_traverse here
+			// reset flag of how many items drawn so far, and then draw the tree
+			g_drawn_so_far = 0;
 			traverse_BSP_tree(root, 5.0f, 5.0f);
 		
 			glfwSwapBuffers( g_gfx.window );
