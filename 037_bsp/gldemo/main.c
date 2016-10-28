@@ -127,6 +127,13 @@ int main(){
 
 	// globoshader here
 
+/* TODO
+ 400 -> 120
+ in/out -> attrib, varying, gl_FragColor
+ 
+ vao extension for 2.1
+ */
+    
 	const char* vertex_shader =
 "#version 400\n"
 "in vec3 vp;"
