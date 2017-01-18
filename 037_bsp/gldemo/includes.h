@@ -1,5 +1,6 @@
 #pragma once
 
+#define CRAPPY_LAPTOP
 
 #include <stdio.h>	 //NULL and printf
 #include <assert.h>	//assert
@@ -19,7 +20,7 @@ struct BSP_Node {
 bool is_point_ahead_of( float x, float y, int id, int root_wall_index );
 BSP_Node *create_bsp( int *walls_list, int num_walls );
 void traverse_BSP_tree( BSP_Node *current_node, float cam_x, float cam_y );
-void draw_wall(float start_x, float start_y, float end_x, float end_y, int unique_id);
+bool draw_wall(float start_x, float start_y, float end_x, float end_y, int unique_id);
 
 extern int g_num_walls;
 extern int g_nodes_in_tree;

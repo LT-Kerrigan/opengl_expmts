@@ -78,53 +78,53 @@ int g_nodes_in_tree;
 // (background to foreground order)
 // input is the camera location (x,y)
 void traverse_BSP_tree( BSP_Node *current_node, float cam_x, float cam_y ) {
-	if( !current_node ) {
+	if ( !current_node ) {
 		return; // nothing here, stop recursion
 	}
 
 	// 1. if current node is leaf - render current node. return
 	if ( !current_node->ahead_ptr && !current_node->behind_ptr ) {
-		// TODO draw this node
-	//	printf( "draw wall %i\n", current_node->wall_index );
-
-        draw_wall(g_walls[current_node->wall_index].start_x,
-            g_walls[current_node->wall_index].start_y,
-            g_walls[current_node->wall_index].end_x,
-            g_walls[current_node->wall_index].end_y,
-            current_node->wall_index);
-
+		bool result = draw_wall( g_walls[current_node->wall_index].start_x,
+														 g_walls[current_node->wall_index].start_y,
+														 g_walls[current_node->wall_index].end_x,
+														 g_walls[current_node->wall_index].end_y,
+														 current_node->wall_index );
 		return; // break recursion
 	}
 
 	// 2. if viewing location is in front of current node
 	if ( is_point_ahead_of( cam_x, cam_y, -1, current_node->wall_index ) ) {
-		// 2.1 render child BSP tree BEHIND current node
-		traverse_BSP_tree( current_node->behind_ptr, cam_x, cam_y );
-		// 2.2. render current node
-	//	printf( "draw wall %i\n", current_node->wall_index );
-
-        draw_wall(g_walls[current_node->wall_index].start_x,
-            g_walls[current_node->wall_index].start_y,
-            g_walls[current_node->wall_index].end_x,
-            g_walls[current_node->wall_index].end_y,
-            current_node->wall_index);
 		// 2.3 render child BSP tree IN FRONT of current node
 		traverse_BSP_tree( current_node->ahead_ptr, cam_x, cam_y );
 
+		// 2.2. render current node
+		bool result = draw_wall( g_walls[current_node->wall_index].start_x,
+														 g_walls[current_node->wall_index].start_y,
+														 g_walls[current_node->wall_index].end_x,
+														 g_walls[current_node->wall_index].end_y,
+														 current_node->wall_index );
+		if ( false == result ) {
+			return; // wall limit drawn already - abort traversal early
+		}
+
+		// 2.1 render child BSP tree BEHIND current node
+		traverse_BSP_tree( current_node->behind_ptr, cam_x, cam_y );
+
 		// 3. otherwise if viewing location is behind current node
 	} else {
-		// 2.1 render BSP tree IN FRONT current node
-		traverse_BSP_tree( current_node->ahead_ptr, cam_x, cam_y );
-		// 2.2 render current node
-	//	printf( "draw wall %i\n", current_node->wall_index );
-
-        draw_wall(g_walls[current_node->wall_index].start_x,
-            g_walls[current_node->wall_index].start_y,
-            g_walls[current_node->wall_index].end_x,
-            g_walls[current_node->wall_index].end_y,
-            current_node->wall_index);
 		// 2.3 render BSP tree BEHIND current node
 		traverse_BSP_tree( current_node->behind_ptr, cam_x, cam_y );
+
+		// 2.2 render current node
+		//	printf( "draw wall %i\n", current_node->wall_index );
+
+		draw_wall( g_walls[current_node->wall_index].start_x,
+							 g_walls[current_node->wall_index].start_y,
+							 g_walls[current_node->wall_index].end_x,
+							 g_walls[current_node->wall_index].end_y, current_node->wall_index );
+
+		// 2.1 render BSP tree IN FRONT current node
+		traverse_BSP_tree( current_node->ahead_ptr, cam_x, cam_y );
 	}
 	// 4. exact match with node is unrealistic scenario -- assume (2)
 }
@@ -176,12 +176,12 @@ bool is_point_ahead_of( float x, float y, int id, int root_wall_index ) {
 
 	// if >= 0 then vectors are within 90 degrees of each other so it's ahead,
 	if ( dot_prod > 0.0f ) {
-	//	printf( "dot prod = %f .: %i is in front of %i\n", dot_prod, id,
-	//					root_wall_index );
+		//	printf( "dot prod = %f .: %i is in front of %i\n", dot_prod, id,
+		//					root_wall_index );
 		return true;
 	}
 	// otherwise behind
-//	printf( "dot prod = %f .: %i is BEHIND %i\n", dot_prod, id, root_wall_index );
+	//	printf( "dot prod = %f .: %i is BEHIND %i\n", dot_prod, id, root_wall_index );
 	return false;
 }
 

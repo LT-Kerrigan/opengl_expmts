@@ -25,13 +25,13 @@ typedef struct Gfx {
 	GLuint ss_quad_vao, ss_quad_vbo; // full-screen quad for general/common use
 } Gfx;
 
-typedef struct Texture_Props{
+typedef struct Texture_Props {
 	int force_chans;
 	bool clamp;
 	bool mipmaps;
 	bool linear;
 	int active_slot;
-}Texture_Props;
+} Texture_Props;
 
 bool init_gl();
 
@@ -45,7 +45,7 @@ double stop_gpu_timer_ms();
 // TODO return a Texture_Meta
 unsigned int load_texture( const char *file_name, Texture_Props props );
 
-typedef struct Framebuffer_Props{
+typedef struct Framebuffer_Props {
 	int width;
 	int height;
 	bool linear;
@@ -54,7 +54,7 @@ typedef struct Framebuffer_Props{
 	bool has_depth_tex32;
 	bool ssaa_affects;
 	float x_scale, y_scale; // used in recreation. don't need to specify
-}Framebuffer_Props;
+} Framebuffer_Props;
 
 typedef struct Framebuffer_Meta {
 	Framebuffer_Props props;

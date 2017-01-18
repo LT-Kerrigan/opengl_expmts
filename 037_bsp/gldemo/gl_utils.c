@@ -1,12 +1,10 @@
 //
-// "Storm My Castle!" - OpenGL stuff
+// OpenGL stuff
 // first v. 2016 by Dr Anton Gerdelan
 // C99
 //
 
 #include "gl_utils.h"
-
-// TODO SRGB option for texture load/create
 
 #define glog printf
 #define glog_err printf
@@ -79,7 +77,7 @@ static bool _extension_checks() {
 		glog( "ARB_texture_float = yes\n" );
 	} else {
 		glog( "ARB_texture_float = no\n" );
-		//has_all_vital = false; // APPLE reports it doesn't have this
+		// has_all_vital = false; // APPLE reports it doesn't have this
 	}
 	return has_all_vital;
 }
@@ -91,11 +89,17 @@ bool init_gl() {
 		glog_err( "ERROR: starting GLFW\n" );
 		return false;
 	}
+
 #ifdef APPLE
 	glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 3 );
 	glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 2 );
 	glfwWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
 	glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
+#endif
+#ifdef CRAPPY_LAPTOP
+	printf( "crappy laptop mode engaged\n" );
+	glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 2 );
+	glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 1 );
 #endif
 	// (note on mesa with "vblank_mode=0 ./castle")
 	// 16x=7.7ms (full size also about 0.2ms slower than 0)
@@ -109,8 +113,8 @@ bool init_gl() {
 	assert( g_gfx.window );
 	glfwSetWindowSizeCallback( g_gfx.window, _glfw_window_size_callback );
 	glfwSetFramebufferSizeCallback( g_gfx.window, _glfw_fb_size_callback );
-	//glfwSetKeyCallback( g_gfx.window, key_callback );
-	//glfwSetMouseButtonCallback( g_gfx.window, mouse_button_callback );
+	// glfwSetKeyCallback( g_gfx.window, key_callback );
+	// glfwSetMouseButtonCallback( g_gfx.window, mouse_button_callback );
 	glfwMakeContextCurrent( g_gfx.window );
 	glfwGetWindowSize( g_gfx.window, &g_gfx.win_width, &g_gfx.win_height );
 	glfwGetFramebufferSize( g_gfx.window, &g_gfx.fb_width, &g_gfx.fb_height );
@@ -124,11 +128,11 @@ bool init_gl() {
 		return false;
 	}
 	glDepthFunc( GL_LESS );
-	glDisable( GL_DEPTH_TEST );
+	glEnable( GL_DEPTH_TEST );
 	glDisable( GL_CULL_FACE );
-	//glCullFace( GL_BACK );
-	//glFrontFace( GL_CCW );
-	//glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	// glCullFace( GL_BACK );
+	// glFrontFace( GL_CCW );
+	// glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 	// glClearColor(0.543, 0.899, 0.970, 1.0f); //lblue
 	// glClearColor(0.745, 0.792, 0.920, 1.0f); //lgrey
 	_init_ss_quad();
@@ -145,7 +149,7 @@ void start_gpu_timer() {
 	if ( !GLEW_ARB_timer_query ) {
 		return;
 	}
-	if ( 0 == g_gfx.gpu_timer_query) {
+	if ( 0 == g_gfx.gpu_timer_query ) {
 		return;
 	}
 
@@ -160,7 +164,7 @@ double stop_gpu_timer_ms() {
 	if ( !GLEW_ARB_timer_query ) {
 		return 0.0;
 	}
-	if ( 0 == g_gfx.gpu_timer_query) {
+	if ( 0 == g_gfx.gpu_timer_query ) {
 		return 0.0;
 	}
 
@@ -170,7 +174,8 @@ double stop_gpu_timer_ms() {
 		GLint available = 0;
 		while ( available != 1 ) {
 			glGetQueryObjectiv( g_gfx.gpu_timer_query, GL_QUERY_RESULT_AVAILABLE,
-													&available ); //valgrind: "Conditional jump or move depends on uninitialised value(s)"
+													&available ); // valgrind: "Conditional jump or move
+																				// depends on uninitialised value(s)"
 		}
 		glGetQueryObjectui64v( g_gfx.gpu_timer_query, GL_QUERY_RESULT, &elapsed_ns );
 	}
@@ -182,17 +187,17 @@ bool init_framebuffer( Framebuffer_Meta *fb_meta, Framebuffer_Props props ) {
 	assert( fb_meta );
 	assert( props.width > 0 );
 	assert( props.height > 0 );
-	
+
 	fb_meta->props = props;
 	fb_meta->props.x_scale = (float)props.width / (float)g_gfx.fb_width;
 	fb_meta->props.y_scale = (float)props.height / (float)g_gfx.fb_height;
 	{
 		glGenFramebuffers( 1, &fb_meta->fb );
 		glGenTextures( 1, &fb_meta->texture );
-		if (props.has_depth_tex32) {
+		if ( props.has_depth_tex32 ) {
 			glGenTextures( 1, &fb_meta->depth_texture );
 		}
-		if (props.has_second_tex) {
+		if ( props.has_second_tex ) {
 			glGenTextures( 1, &fb_meta->second_texture );
 		} else {
 			glGenRenderbuffers( 1, &fb_meta->rb );
@@ -201,11 +206,12 @@ bool init_framebuffer( Framebuffer_Meta *fb_meta, Framebuffer_Props props ) {
 			return false;
 		}
 	}
-	
+
 	return true;
 }
 
-// was ~1.5ms before fullscreen -> 1.4 without all the depth32 textures. -> 1.3 with /2 sized refraction map
+// was ~1.5ms before fullscreen -> 1.4 without all the depth32 textures. -> 1.3 with
+// /2 sized refraction map
 bool rebuild_framebuffer( Framebuffer_Meta *fb_meta ) {
 	{
 		assert( fb_meta );
@@ -215,9 +221,11 @@ bool rebuild_framebuffer( Framebuffer_Meta *fb_meta ) {
 		assert( fb_meta->texture > 0 );
 		assert( fb_meta->rb > 0 || fb_meta->depth_texture > 0 );
 	}
-	int w = fb_meta->props.width = (int)((float)fb_meta->props.x_scale * (float)g_gfx.fb_width);
-	int h = fb_meta->props.height = (int)((float)fb_meta->props.y_scale * (float)g_gfx.fb_height);
-	if (fb_meta->props.ssaa_affects) {
+	int w = fb_meta->props.width =
+		(int)( (float)fb_meta->props.x_scale * (float)g_gfx.fb_width );
+	int h = fb_meta->props.height =
+		(int)( (float)fb_meta->props.y_scale * (float)g_gfx.fb_height );
+	if ( fb_meta->props.ssaa_affects ) {
 		w *= g_gfx.effective_ssaa_factor;
 		h *= g_gfx.effective_ssaa_factor;
 	}
@@ -227,7 +235,8 @@ bool rebuild_framebuffer( Framebuffer_Meta *fb_meta ) {
 		if ( fb_meta->props.hdr32 ) {
 			glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB32F, w, h, 0, GL_RGB, GL_FLOAT, NULL );
 		} else {
-			glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
+			glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE,
+										NULL );
 		}
 		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
 		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
@@ -244,9 +253,11 @@ bool rebuild_framebuffer( Framebuffer_Meta *fb_meta ) {
 		if ( fb_meta->props.has_second_tex ) {
 			glBindTexture( GL_TEXTURE_2D, fb_meta->second_texture );
 			if ( fb_meta->props.hdr32 ) {
-				glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB32F, w, h, 0, GL_RGB, GL_FLOAT, NULL );
+				glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB32F, w, h, 0, GL_RGB, GL_FLOAT,
+											NULL );
 			} else {
-				glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
+				glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE,
+											NULL );
 			}
 			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
 			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
@@ -264,7 +275,7 @@ bool rebuild_framebuffer( Framebuffer_Meta *fb_meta ) {
 		if ( fb_meta->props.has_depth_tex32 ) {
 			glBindTexture( GL_TEXTURE_2D, fb_meta->depth_texture );
 			glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, w, h, 0,
-				GL_DEPTH_COMPONENT, GL_FLOAT, NULL );
+										GL_DEPTH_COMPONENT, GL_FLOAT, NULL );
 			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
 			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 			if ( fb_meta->props.linear ) {
@@ -321,7 +332,7 @@ bool rebuild_framebuffer( Framebuffer_Meta *fb_meta ) {
 }
 
 void bind_framebuffer( Framebuffer_Meta *fb_meta ) {
-	if (!fb_meta) {
+	if ( !fb_meta ) {
 		glBindFramebuffer( GL_FRAMEBUFFER, 0 );
 		glViewport( 0, 0, g_gfx.fb_width, g_gfx.fb_height );
 		return;
@@ -329,10 +340,9 @@ void bind_framebuffer( Framebuffer_Meta *fb_meta ) {
 	glBindFramebuffer( GL_FRAMEBUFFER, fb_meta->fb );
 	int w = fb_meta->props.width;
 	int h = fb_meta->props.height;
-	if (fb_meta->props.ssaa_affects) {
+	if ( fb_meta->props.ssaa_affects ) {
 		w *= g_gfx.effective_ssaa_factor;
 		h *= g_gfx.effective_ssaa_factor;
 	}
 	glViewport( 0, 0, w, h );
 }
-
