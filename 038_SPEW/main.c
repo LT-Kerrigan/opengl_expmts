@@ -1,6 +1,8 @@
-// does flagging to include glcorearb.h instead make a diff?
-// result -> still missing new stuff but also no longer has the default 1.1 funcs
-//#define GLFW_INCLUDE_GLCOREARB
+
+// note: glfw has functions for proc hookup and extension check across different
+// platforms
+
+#define GLFW_INCLUDE_GLCOREARB
 //#define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 
