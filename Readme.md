@@ -1,4 +1,4 @@
-#opengl experiments / demos
+# opengl experiments / demos
 
 A repository to put play-around ideas (good, bad, and crazy), semi-finished
 projects, and volatile software.
@@ -46,6 +46,7 @@ projects, and volatile software.
 | 036     | pano2cube           | converts Streetview app panorama to cube map textures | working |
 | 037     | bsp                 | binary space partitioning demo                        | started |
 | 038     | SPEW                | home-made GLEW replacement. not an acronym, just loud | working |
+| 039     | wad_render          | render geometry from a DOOM WAD file in OpenGL | started |
 | xxx     | fresnel_prism       | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
 | xxx     | apg_glh             | custom alternative to glew / gl headers setup         | proposed  |
 | xxx     | wu_line             | wu's line drawing algorithm (pseudo on wiki)          | proposed  |
