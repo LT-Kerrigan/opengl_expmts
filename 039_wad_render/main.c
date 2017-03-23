@@ -31,6 +31,7 @@ int main() {
     size_t max_geom_sz = 1024 * 1024;
     float *geom_buff = (float *)calloc( 4, max_geom_sz );
     int bytes = fill_geom( geom_buff );
+    fill_sectors();
     nwall_verts = bytes / 24;
     assert( bytes <= max_geom_sz );
     glGenVertexArrays( 1, &walls_vao );
@@ -48,7 +49,8 @@ int main() {
     glEnableVertexAttribArray( 1 );
     free( geom_buff );
   }
-  vec3 cam_pos = ( vec3 ){ 1664, 3000, -3000 };
+  // NOTE: should this be negative to go up? seems very strange... TODO
+  vec3 cam_pos = ( vec3 ){ 1059.12, 44, 3651.84 };
   float cam_heading_speed = 100.0f; // 30 degrees per second
   float cam_heading = 0.0f;         // y-rotation in degrees
   mat4 T = translate_mat4( ( vec3 ){ -cam_pos.x, -cam_pos.y, -cam_pos.z } );
@@ -161,12 +163,13 @@ int main() {
         }
         if ( cam_moved ) {
           mat4 R = quat_to_mat4( quaternion );
-          cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( fwd ), move.z ) );
-          cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( up ), -move.y ) );
-          cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( rgt ), -move.x ) );
+          cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( fwd ), -move.z ) );
+          cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( up ), move.y ) );
+          cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( rgt ), move.x ) );
+          print_vec3( cam_pos );
           mat4 T = translate_mat4( cam_pos );
 
-          view_mat = mult_mat4_mat4( inverse_mat4( R ), T );
+          view_mat = mult_mat4_mat4( inverse_mat4( R ),inverse_mat4( T) );
         }
         float aspect = (float)g_gl_width / (float)g_gl_height;
         mat4 proj_mat = perspective( 67, aspect, 10.0, 10000.0 );
@@ -182,6 +185,8 @@ int main() {
       glUseProgram( program );
       glBindVertexArray( walls_vao );
       glDrawArrays( GL_TRIANGLES, 0, nwall_verts );
+
+      draw_sectors();
 
       // put the stuff we've been drawing onto the display
       glfwSwapBuffers( g_window );

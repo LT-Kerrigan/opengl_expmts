@@ -6,3 +6,5 @@
 bool open_wad( const char *filename, const char *map_name );
 // returns nbytes added
 int fill_geom( float* geom_buff );
+void fill_sectors();
+void draw_sectors();

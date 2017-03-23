@@ -1,6 +1,7 @@
 // WAD Rend - Copyright 2017 Anton Gerdelan <antonofnote@gmail.com>
 // C99
 #include "wad.h"
+#include "gl_utils.h"
 #include "linmath.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -42,9 +43,12 @@ typedef struct sector_t {
   char ceil_texture_name[9];  // actually 8 + \0
   int16_t light_level;
   int16_t type;
-  int16_t tag;       // corresp. to linedef tag
-  int linedefs[128]; // i added this
-  int nlinedefs;     // and this
+  int16_t tag;                // corresp. to linedef tag
+  int linedefs[128];          // i added this
+  int nlinedefs;              // and this
+  GLuint floor_vao, ceil_vao; // and this
+  GLuint floor_vbo, ceil_vbo; // and this
+  int nverts;                 // and this
 } sector_t;
 
 static char wad_type[5];
@@ -224,6 +228,7 @@ int fill_geom( float *geom_buff ) {
         sectors[left_sector].linedefs[sectors[left_sector].nlinedefs++] = ldidx;
       }
     }
+    printf( "left floor %i left ceil %i\n", left_floor, left_ceil );
     if ( left_sidedef > -1 ) {
       vec3 a = ( vec3 ){ start_x, left_ceil, start_y };
       vec3 b = ( vec3 ){ start_x, left_floor, start_y };
@@ -498,9 +503,99 @@ int fill_geom( float *geom_buff ) {
 floors/ceils
  // use Ear Clipping algorithm O(n^2) to tessellate sectors
   // NOTE: separate boxes are valid sectors...
-  for (int secidx = 0; secidx < nsectors; secidx++){
-    int16_t ceil =
-    int16_t floor =
-    left_sector
-  }
 */
+void fill_sectors() {
+  for ( int sectidx = 0; sectidx < nsectors; sectidx++ ) {
+    int nsld = sectors[sectidx].nlinedefs;
+    int nsector_verts = nsld * 2;
+    sectors[sectidx].nverts = nsector_verts;
+    int nvertcomps = 6;
+    float *floor_buffer =
+      (float *)calloc( nsector_verts * nvertcomps, sizeof( float ) );
+    float *ceil_buffer =
+      (float *)calloc( nsector_verts * nvertcomps, sizeof( float ) );
+    int buffidx = 0;
+    // floor
+    for ( int ldidx = 0; ldidx < nsld; ldidx++ ) {
+      int16_t actualld_idx = sectors[sectidx].linedefs[ldidx];
+      int16_t start = linedefs[actualld_idx].start_vertex_idx;
+      int16_t end = linedefs[actualld_idx].end_vertex_idx;
+
+      floor_buffer[buffidx++] = (float)vertices[start].x;
+      floor_buffer[buffidx++] = (float)sectors[sectidx].floor_height;
+      floor_buffer[buffidx++] = -(float)vertices[start].y;
+      floor_buffer[buffidx++] = 0.0f;
+      floor_buffer[buffidx++] = 1.0f;
+      floor_buffer[buffidx++] = 0.0f;
+      floor_buffer[buffidx++] = (float)vertices[end].x;
+      floor_buffer[buffidx++] = (float)sectors[sectidx].floor_height;
+      floor_buffer[buffidx++] = -(float)vertices[end].y;
+      floor_buffer[buffidx++] = 0.0f;
+      floor_buffer[buffidx++] = 1.0f;
+      floor_buffer[buffidx++] = 0.0f;
+    }
+    // ceil
+    buffidx = 0;
+    for ( int ldidx = 0; ldidx < nsld; ldidx++ ) {
+      int16_t actualld_idx = sectors[sectidx].linedefs[ldidx];
+      int16_t start = linedefs[actualld_idx].start_vertex_idx;
+      int16_t end = linedefs[actualld_idx].end_vertex_idx;
+
+      ceil_buffer[buffidx++] = (float)vertices[start].x;
+      ceil_buffer[buffidx++] = (float)sectors[sectidx].ceil_height;
+      ceil_buffer[buffidx++] = -(float)vertices[start].y;
+      ceil_buffer[buffidx++] = 0.0f;
+      ceil_buffer[buffidx++] = -1.0f;
+      ceil_buffer[buffidx++] = 0.0f;
+      ceil_buffer[buffidx++] = (float)vertices[end].x;
+      ceil_buffer[buffidx++] = (float)sectors[sectidx].ceil_height;
+      ceil_buffer[buffidx++] = -(float)vertices[end].y;
+      ceil_buffer[buffidx++] = 0.0f;
+      ceil_buffer[buffidx++] = -1.0f;
+      ceil_buffer[buffidx++] = 0.0f;
+    }
+    {
+      glGenVertexArrays( 1, &sectors[sectidx].ceil_vao );
+      glBindVertexArray( sectors[sectidx].ceil_vao );
+      glGenBuffers( 1, &sectors[sectidx].ceil_vbo );
+      glBindBuffer( GL_ARRAY_BUFFER, sectors[sectidx].ceil_vbo );
+      glBufferData( GL_ARRAY_BUFFER, nsector_verts * nvertcomps * sizeof( GLfloat ),
+                    ceil_buffer, GL_STATIC_DRAW );
+      GLintptr vertex_normal_offset = 3 * sizeof( float );
+      glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ), NULL );
+      glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ),
+                             (GLvoid *)vertex_normal_offset );
+      glEnableVertexAttribArray( 0 );
+      glEnableVertexAttribArray( 1 );
+    }
+    {
+      glGenVertexArrays( 1, &sectors[sectidx].floor_vao );
+      glBindVertexArray( sectors[sectidx].floor_vao );
+      glGenBuffers( 1, &sectors[sectidx].floor_vbo );
+      glBindBuffer( GL_ARRAY_BUFFER, sectors[sectidx].floor_vbo );
+      glBufferData( GL_ARRAY_BUFFER, nsector_verts * nvertcomps * sizeof( GLfloat ),
+                    floor_buffer, GL_STATIC_DRAW );
+      GLintptr vertex_normal_offset = 3 * sizeof( float );
+      glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ), NULL );
+      glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ),
+                             (GLvoid *)vertex_normal_offset );
+      glEnableVertexAttribArray( 0 );
+      glEnableVertexAttribArray( 1 );
+    }
+
+    free( floor_buffer );
+    free( ceil_buffer );
+  }
+}
+
+// TODO -- maybe subsectors instead?
+void draw_sectors() {
+  glDisable( GL_CULL_FACE ); // cull face
+  for ( int sectidx = 0; sectidx < nsectors; sectidx++ ) {
+    glBindVertexArray( sectors[sectidx].floor_vao );
+    glDrawArrays( GL_POLYGON, 0, sectors[sectidx].nverts );
+  //  glBindVertexArray( sectors[sectidx].ceil_vao );
+   // glDrawArrays( GL_POLYGON, 0, sectors[sectidx].nverts );
+  }
+  glEnable( GL_CULL_FACE ); // cull face
+}
