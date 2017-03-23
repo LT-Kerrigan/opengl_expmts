@@ -1,9 +1,10 @@
 #version 120
 
-varying float dist;
+varying vec3 n_eye;
 
 void main() {
-	gl_FragColor = vec4 (1.0, 0.0, 0.0, 1.0);
-	// use z position to shader darker to help perception of distance
-	gl_FragColor.xyz *= dist;
+	vec3 nn = normalize(n_eye);
+	float fac = max(0.0, dot(nn, vec3(0.0,0.0,1.0)));
+	gl_FragColor = vec4 (1.0, 1.0, 1.0, 1.0);
+	gl_FragColor.rgb = vec3(fac * 0.5 + 0.5);
 }

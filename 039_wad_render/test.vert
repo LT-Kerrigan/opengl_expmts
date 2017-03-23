@@ -1,11 +1,11 @@
 #version 120
 
 attribute vec3 vertex_position;
+attribute vec3 vertex_normal;
 uniform mat4 view, proj;
-// use z position to shader darker to help perception of distance
-varying float dist;
+varying vec3 n_eye;
 
 void main() {
 	gl_Position = proj * view * vec4 (vertex_position, 1.0);
-	dist = vertex_position.z;//1.0 - (-pos_eye.z / 10.0);
+	n_eye = vec3(view * vec4 (vertex_normal, 0.0));
 }

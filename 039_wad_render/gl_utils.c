@@ -253,6 +253,8 @@ bool create_programme (GLuint vert, GLuint frag, GLuint* programme) {
 	);
 	glAttachShader (*programme, vert);
 	glAttachShader (*programme, frag);
+	glBindAttribLocation(*programme, 0, "vertex_position");
+	glBindAttribLocation(*programme, 1, "vertex_normal");
 	// link the shader programme. if binding input attributes do that before link
 	glLinkProgram (*programme);
 	GLint params = -1;
