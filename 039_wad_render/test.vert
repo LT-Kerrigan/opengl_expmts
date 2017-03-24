@@ -1,3 +1,5 @@
+// WAD Rend - Copyright 2017 Anton Gerdelan <antonofnote@gmail.com>
+// C99
 #version 120
 
 attribute vec3 vertex_position;

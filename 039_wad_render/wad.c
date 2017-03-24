@@ -1,6 +1,7 @@
 // WAD Rend - Copyright 2017 Anton Gerdelan <antonofnote@gmail.com>
 // C99
 #include "wad.h"
+#include "apg_data_structs.h"
 #include "gl_utils.h"
 #include "linmath.h"
 #include <stdint.h>
@@ -228,7 +229,7 @@ int fill_geom( float *geom_buff ) {
         sectors[left_sector].linedefs[sectors[left_sector].nlinedefs++] = ldidx;
       }
     }
-    printf( "left floor %i left ceil %i\n", left_floor, left_ceil );
+    // printf( "left floor %i left ceil %i\n", left_floor, left_ceil );
     if ( left_sidedef > -1 ) {
       vec3 a = ( vec3 ){ start_x, left_ceil, start_y };
       vec3 b = ( vec3 ){ start_x, left_floor, start_y };
@@ -499,103 +500,161 @@ int fill_geom( float *geom_buff ) {
   return comp_idx * 4;
 }
 
-/*
-floors/ceils
- // use Ear Clipping algorithm O(n^2) to tessellate sectors
-  // NOTE: separate boxes are valid sectors...
-*/
-void fill_sectors() {
-  for ( int sectidx = 0; sectidx < nsectors; sectidx++ ) {
-    int nsld = sectors[sectidx].nlinedefs;
-    int nsector_verts = nsld * 2;
-    sectors[sectidx].nverts = nsector_verts;
-    int nvertcomps = 6;
-    float *floor_buffer =
-      (float *)calloc( nsector_verts * nvertcomps, sizeof( float ) );
-    float *ceil_buffer =
-      (float *)calloc( nsector_verts * nvertcomps, sizeof( float ) );
-    int buffidx = 0;
-    // floor
-    for ( int ldidx = 0; ldidx < nsld; ldidx++ ) {
-      int16_t actualld_idx = sectors[sectidx].linedefs[ldidx];
-      int16_t start = linedefs[actualld_idx].start_vertex_idx;
-      int16_t end = linedefs[actualld_idx].end_vertex_idx;
+float sign( vec2 p1, vec2 p2, vec2 p3 ) {
+  return ( p1.x - p3.x ) * ( p2.y - p3.y ) - ( p2.x - p3.x ) * ( p1.y - p3.y );
+}
 
-      floor_buffer[buffidx++] = (float)vertices[start].x;
-      floor_buffer[buffidx++] = (float)sectors[sectidx].floor_height;
-      floor_buffer[buffidx++] = -(float)vertices[start].y;
-      floor_buffer[buffidx++] = 0.0f;
-      floor_buffer[buffidx++] = 1.0f;
-      floor_buffer[buffidx++] = 0.0f;
-      floor_buffer[buffidx++] = (float)vertices[end].x;
-      floor_buffer[buffidx++] = (float)sectors[sectidx].floor_height;
-      floor_buffer[buffidx++] = -(float)vertices[end].y;
-      floor_buffer[buffidx++] = 0.0f;
-      floor_buffer[buffidx++] = 1.0f;
-      floor_buffer[buffidx++] = 0.0f;
-    }
-    // ceil
-    buffidx = 0;
-    for ( int ldidx = 0; ldidx < nsld; ldidx++ ) {
-      int16_t actualld_idx = sectors[sectidx].linedefs[ldidx];
-      int16_t start = linedefs[actualld_idx].start_vertex_idx;
-      int16_t end = linedefs[actualld_idx].end_vertex_idx;
+bool PointInTriangle( vec2 pt, vec2 v1, vec2 v2, vec2 v3 ) {
+  bool b1, b2, b3;
 
-      ceil_buffer[buffidx++] = (float)vertices[start].x;
-      ceil_buffer[buffidx++] = (float)sectors[sectidx].ceil_height;
-      ceil_buffer[buffidx++] = -(float)vertices[start].y;
-      ceil_buffer[buffidx++] = 0.0f;
-      ceil_buffer[buffidx++] = -1.0f;
-      ceil_buffer[buffidx++] = 0.0f;
-      ceil_buffer[buffidx++] = (float)vertices[end].x;
-      ceil_buffer[buffidx++] = (float)sectors[sectidx].ceil_height;
-      ceil_buffer[buffidx++] = -(float)vertices[end].y;
-      ceil_buffer[buffidx++] = 0.0f;
-      ceil_buffer[buffidx++] = -1.0f;
-      ceil_buffer[buffidx++] = 0.0f;
-    }
-    {
-      glGenVertexArrays( 1, &sectors[sectidx].ceil_vao );
-      glBindVertexArray( sectors[sectidx].ceil_vao );
-      glGenBuffers( 1, &sectors[sectidx].ceil_vbo );
-      glBindBuffer( GL_ARRAY_BUFFER, sectors[sectidx].ceil_vbo );
-      glBufferData( GL_ARRAY_BUFFER, nsector_verts * nvertcomps * sizeof( GLfloat ),
-                    ceil_buffer, GL_STATIC_DRAW );
-      GLintptr vertex_normal_offset = 3 * sizeof( float );
-      glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ), NULL );
-      glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ),
-                             (GLvoid *)vertex_normal_offset );
-      glEnableVertexAttribArray( 0 );
-      glEnableVertexAttribArray( 1 );
-    }
-    {
-      glGenVertexArrays( 1, &sectors[sectidx].floor_vao );
-      glBindVertexArray( sectors[sectidx].floor_vao );
-      glGenBuffers( 1, &sectors[sectidx].floor_vbo );
-      glBindBuffer( GL_ARRAY_BUFFER, sectors[sectidx].floor_vbo );
-      glBufferData( GL_ARRAY_BUFFER, nsector_verts * nvertcomps * sizeof( GLfloat ),
-                    floor_buffer, GL_STATIC_DRAW );
-      GLintptr vertex_normal_offset = 3 * sizeof( float );
-      glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ), NULL );
-      glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ),
-                             (GLvoid *)vertex_normal_offset );
-      glEnableVertexAttribArray( 0 );
-      glEnableVertexAttribArray( 1 );
-    }
+  b1 = sign( pt, v1, v2 ) < 0.0f;
+  b2 = sign( pt, v2, v3 ) < 0.0f;
+  b3 = sign( pt, v3, v1 ) < 0.0f;
 
-    free( floor_buffer );
-    free( ceil_buffer );
+  return ( ( b1 == b2 ) && ( b2 == b3 ) );
+}
+
+float flat_buffer[4096];
+int flat_points;
+int flat_comps;
+
+#define PHASE_B
+void earclip( int sector_idx ) {
+  flat_comps = 0;
+  flat_points = 0;
+#ifdef PHASE_A
+  { // phase 1 - just draw outlines. start with first edge
+    for ( int i = 0; i < sectors[sector_idx].nlinedefs; i++ ) {
+      int first_linedef_idx = sectors[sector_idx].linedefs[i];
+      int first_vertex_idx = linedefs[first_linedef_idx].start_vertex_idx;
+      int second_vertex_idx = linedefs[first_linedef_idx].end_vertex_idx;
+      flat_buffer[flat_comps++] = (float)vertices[first_vertex_idx].x;
+      flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
+      flat_buffer[flat_comps++] = -(float)vertices[first_vertex_idx].y;
+      flat_buffer[flat_comps++] = (float)0;
+      flat_buffer[flat_comps++] = (float)1;
+      flat_buffer[flat_comps++] = (float)0;
+      flat_buffer[flat_comps++] = (float)vertices[second_vertex_idx].x;
+      flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
+      flat_buffer[flat_comps++] = -(float)vertices[second_vertex_idx].y;
+      flat_buffer[flat_comps++] = (float)0;
+      flat_buffer[flat_comps++] = (float)1;
+      flat_buffer[flat_comps++] = (float)0;
+      flat_points += 2;
+    }
+    sectors[sector_idx].nverts = sectors[sector_idx].nlinedefs * 2;
+  }
+#endif
+#ifdef PHASE_B
+  // build adjacent vertex list like this:
+  // START - (END/START) - (END/START) -....
+  // NOTE ASSUMPTION TO SIMPLIFY -- only 2 linedefs share a vert per sector
+  int vert_adjacency[2048] = { -1 };
+  bool slinedef_added[1024] = { false };
+  int nlinedefs_added = 0;
+  int num_adjacency = 0;
+  { // phase 2 - order the vertices
+  // TODO change first one around if left/right is differnt
+    int first_linedef_idx = sectors[sector_idx].linedefs[0];
+    int first_vertex_idx = linedefs[first_linedef_idx].start_vertex_idx;
+    int next_vertex_idx = linedefs[first_linedef_idx].end_vertex_idx;
+    int last_vertex_idx = first_vertex_idx;
+    vert_adjacency[num_adjacency++] = first_vertex_idx;
+    slinedef_added[0] = true;
+    nlinedefs_added++;
+    int previous_ld = 0;
+    int countdown = 1000;
+    while ( nlinedefs_added < sectors[sector_idx].nlinedefs ) {
+      if (last_vertex_idx == next_vertex_idx) {
+        break; // back to the beginning - ignore other lines ASSUMPTION!
+        // but weird stuff was adding in after this point
+      }
+      countdown--;
+      assert(countdown);
+
+      //printf("sector %i looking for %i\n", sector_idx, next_vertex_idx);
+      for ( int i = 0; i < sectors[sector_idx].nlinedefs; i++ ) {
+        int linedef_idx = sectors[sector_idx].linedefs[i];
+        int start_v_i = linedefs[linedef_idx].start_vertex_idx;
+        int end_v_i = linedefs[linedef_idx].end_vertex_idx;
+        //if (sector_idx == 5) {
+        // printf("lookat at %i - options %i and %i\n", i, start_v_i, end_v_i);
+        //}
+        if ( i == previous_ld ) {
+          continue;
+        }
+        
+        if ( start_v_i == next_vertex_idx ) {
+          vert_adjacency[num_adjacency++] = start_v_i;
+          next_vertex_idx = end_v_i;
+          previous_ld = i;
+          nlinedefs_added++;
+          break;
+        } else if ( end_v_i == next_vertex_idx ) {
+          vert_adjacency[num_adjacency++] = end_v_i;
+          next_vertex_idx = start_v_i;
+          previous_ld = i;
+          nlinedefs_added++;
+          break;
+        }
+      }
+    }
+    { // now add them in order
+      for ( int i = 0; i < num_adjacency; i++ ) {
+        int first_vertex_idx = vert_adjacency[i];
+        int b = ( i + 1 ) % num_adjacency;
+        int second_vertex_idx = vert_adjacency[b];
+        flat_buffer[flat_comps++] = (float)vertices[first_vertex_idx].x;
+        flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
+        flat_buffer[flat_comps++] = -(float)vertices[first_vertex_idx].y;
+        flat_buffer[flat_comps++] = (float)0;
+        flat_buffer[flat_comps++] = (float)1;
+        flat_buffer[flat_comps++] = (float)0;
+        flat_buffer[flat_comps++] = (float)vertices[second_vertex_idx].x;
+        flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
+        flat_buffer[flat_comps++] = -(float)vertices[second_vertex_idx].y;
+        flat_buffer[flat_comps++] = (float)0;
+        flat_buffer[flat_comps++] = (float)1;
+        flat_buffer[flat_comps++] = (float)0;
+        flat_points += 2;
+      }
+      sectors[sector_idx].nverts = sectors[sector_idx].nlinedefs * 2;
+    }
+  }
+#endif
+  {
+    glGenVertexArrays( 1, &sectors[sector_idx].floor_vao );
+    glBindVertexArray( sectors[sector_idx].floor_vao );
+    glGenBuffers( 1, &sectors[sector_idx].floor_vbo );
+    glBindBuffer( GL_ARRAY_BUFFER, sectors[sector_idx].floor_vbo );
+    glBufferData( GL_ARRAY_BUFFER, 6 * flat_points * sizeof( GLfloat ), flat_buffer,
+                  GL_STATIC_DRAW );
+    GLintptr vertex_normal_offset = 3 * sizeof( float );
+    glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ), NULL );
+    glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ),
+                           (GLvoid *)vertex_normal_offset );
+    glEnableVertexAttribArray( 0 );
+    glEnableVertexAttribArray( 1 );
   }
 }
 
-// TODO -- maybe subsectors instead?
-void draw_sectors() {
-  glDisable( GL_CULL_FACE ); // cull face
+void fill_sectors() {
   for ( int sectidx = 0; sectidx < nsectors; sectidx++ ) {
-    glBindVertexArray( sectors[sectidx].floor_vao );
-    glDrawArrays( GL_POLYGON, 0, sectors[sectidx].nverts );
-  //  glBindVertexArray( sectors[sectidx].ceil_vao );
-   // glDrawArrays( GL_POLYGON, 0, sectors[sectidx].nverts );
+    earclip( sectidx );
   }
-  glEnable( GL_CULL_FACE ); // cull face
+}
+
+void draw_sectors( int verts ) {
+  glDisable( GL_CULL_FACE );
+
+  for ( int sectidx = 0; sectidx < nsectors; sectidx++ ) {
+    int usev = verts;
+    if ( usev > sectors[sectidx].nverts ) {
+      usev = sectors[sectidx].nverts;
+    }
+    glBindVertexArray( sectors[sectidx].floor_vao );
+    glDrawArrays( GL_LINES, 0, usev );
+  }
+
+  glEnable( GL_CULL_FACE );
 }

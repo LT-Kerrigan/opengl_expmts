@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define WAD_FILE "DOOM.WAD"
+#define WAD_FILE "DOOM1.WAD"
 #define MAP_NAME "E1M1"
 #define VERTEX_SHADER_FILE "test.vert"
 #define FRAGMENT_SHADER_FILE "test.frag"
@@ -71,7 +71,7 @@ int main() {
     glEnable( GL_CULL_FACE ); // cull face
     glCullFace( GL_BACK );    // cull back face
     glFrontFace( GL_CCW );    // set counter-clock-wise vertex order to mean the
-    glClearColor( 0.2, 0.2, 0.2, 1.0 ); // grey background to help spot mistakes
+    glClearColor( 0.2, 0.2, 0.4, 1.0 ); // grey background to help spot mistakes
 
     double previous_seconds = glfwGetTime();
     while ( !glfwWindowShouldClose( g_window ) ) {
@@ -87,12 +87,62 @@ int main() {
       if ( GLFW_PRESS == glfwGetKey( g_window, GLFW_KEY_ESCAPE ) ) {
         glfwSetWindowShouldClose( g_window, 1 );
       }
+      static int polygon_mode = 2;
+      static bool pdown = false;
+      if ( GLFW_PRESS == glfwGetKey( g_window, GLFW_KEY_P ) ) {
+        if ( !pdown ) {
+          pdown = true;
+          polygon_mode = ( polygon_mode + 1 ) % 3;
+
+          switch ( polygon_mode ) {
+            case 1: {
+              glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+              glDisable( GL_CULL_FACE );
+            } break;
+            case 0: {
+              glPolygonMode( GL_FRONT_AND_BACK, GL_POINT );
+              glDisable( GL_CULL_FACE );
+              static bool pdown = false;
+              if ( GLFW_PRESS == glfwGetKey( g_window, GLFW_KEY_P ) ) {
+                if ( !pdown ) {
+                  pdown = true;
+                  polygon_mode = ( polygon_mode + 1 ) % 3;
+
+                  switch ( polygon_mode ) {
+                    case 1: {
+                      glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+                      glDisable( GL_CULL_FACE );
+                    } break;
+                    case 0: {
+                      glPolygonMode( GL_FRONT_AND_BACK, GL_POINT );
+                      glDisable( GL_CULL_FACE );
+                    } break;
+                    default: {
+                      glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+                      glEnable( GL_CULL_FACE );
+                    }
+                  }
+                }
+              } else {
+                pdown = false;
+              }
+            } break;
+            default: {
+              glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+              glEnable( GL_CULL_FACE );
+            }
+          }
+        }
+      } else {
+        pdown = false;
+      }
       { // camera update
         const float cam_speed = 1000.0f;
 
         bool cam_moved = false;
         vec3 move = ( vec3 ){ 0.0, 0.0, 0.0 };
         float cam_yaw = 0.0f; // y-rotation in degrees
+        static float cam_heading = 0.0f;
         float cam_pitch = 0.0f;
         float cam_roll = 0.0;
 
@@ -122,21 +172,29 @@ int main() {
         }
         if ( glfwGetKey( g_window, GLFW_KEY_LEFT ) ) {
           cam_yaw += cam_heading_speed * elapsed_seconds;
+          cam_heading += cam_yaw;
           cam_moved = true;
           versor q_yaw = quat_from_axis_deg( cam_yaw, v3_v4( up ) );
+          mat4 Ry = rot_y_deg_mat4( cam_heading );
+
           quaternion = mult_quat_quat( q_yaw, quaternion );
           mat4 R = quat_to_mat4( quaternion );
-          fwd = mult_mat4_vec4( R, ( vec4 ){ 0.0, 0.0, -1.0, 0.0 } );
+
+          fwd = mult_mat4_vec4( Ry, ( vec4 ){ 0.0, 0.0, -1.0, 0.0 } );
+          print_vec4( fwd );
           rgt = mult_mat4_vec4( R, ( vec4 ){ 1.0, 0.0, 0.0, 0.0 } );
           // up = mult_mat4_vec4( R, ( vec4 ){ 0.0, 1.0, 0.0, 0.0 } );
         }
         if ( glfwGetKey( g_window, GLFW_KEY_RIGHT ) ) {
           cam_yaw -= cam_heading_speed * elapsed_seconds;
+          cam_heading += cam_yaw;
           cam_moved = true;
           versor q_yaw = quat_from_axis_deg( cam_yaw, v3_v4( up ) );
+          mat4 Ry = rot_y_deg_mat4( cam_heading );
           quaternion = mult_quat_quat( q_yaw, quaternion );
           mat4 R = quat_to_mat4( quaternion );
-          fwd = mult_mat4_vec4( R, ( vec4 ){ 0.0, 0.0, -1.0, 0.0 } );
+          fwd = mult_mat4_vec4( Ry, ( vec4 ){ 0.0, 0.0, -1.0, 0.0 } );
+
           rgt = mult_mat4_vec4( R, ( vec4 ){ 1.0, 0.0, 0.0, 0.0 } );
           // up = mult_mat4_vec4( R, ( vec4 ){ 0.0, 1.0, 0.0, 0.0 } );
         }
@@ -146,7 +204,7 @@ int main() {
           versor q_pitch = quat_from_axis_deg( cam_pitch, v3_v4( rgt ) );
           quaternion = mult_quat_quat( q_pitch, quaternion );
           mat4 R = quat_to_mat4( quaternion );
-          fwd = mult_mat4_vec4( R, ( vec4 ){ 0.0, 0.0, -1.0, 0.0 } );
+          // fwd = mult_mat4_vec4( R, ( vec4 ){ 0.0, 0.0, -1.0, 0.0 } );
           rgt = mult_mat4_vec4( R, ( vec4 ){ 1.0, 0.0, 0.0, 0.0 } );
           // up = mult_mat4_vec4( R, ( vec4 ){ 0.0, 1.0, 0.0, 0.0 } );
         }
@@ -157,7 +215,7 @@ int main() {
           quaternion = mult_quat_quat( q_pitch, quaternion );
           // recalc axes to suit new orientation
           mat4 R = quat_to_mat4( quaternion );
-          fwd = mult_mat4_vec4( R, ( vec4 ){ 0.0, 0.0, -1.0, 0.0 } );
+          // fwd = mult_mat4_vec4( R, ( vec4 ){ 0.0, 0.0, -1.0, 0.0 } );
           rgt = mult_mat4_vec4( R, ( vec4 ){ 1.0, 0.0, 0.0, 0.0 } );
           // up = mult_mat4_vec4( R, ( vec4 ){ 0.0, 1.0, 0.0, 0.0 } );
         }
@@ -169,7 +227,7 @@ int main() {
           print_vec3( cam_pos );
           mat4 T = translate_mat4( cam_pos );
 
-          view_mat = mult_mat4_mat4( inverse_mat4( R ),inverse_mat4( T) );
+          view_mat = mult_mat4_mat4( inverse_mat4( R ), inverse_mat4( T ) );
         }
         float aspect = (float)g_gl_width / (float)g_gl_height;
         mat4 proj_mat = perspective( 67, aspect, 10.0, 10000.0 );
@@ -184,9 +242,22 @@ int main() {
 
       glUseProgram( program );
       glBindVertexArray( walls_vao );
-      glDrawArrays( GL_TRIANGLES, 0, nwall_verts );
+      // glDrawArrays( GL_TRIANGLES, 0, nwall_verts );
 
-      draw_sectors();
+      static int flat_verts = 2;
+
+      static bool fdown = false;
+      if ( GLFW_PRESS == glfwGetKey( g_window, GLFW_KEY_F ) ) {
+        if ( !fdown ) {
+          fdown = true;
+          flat_verts = ( flat_verts + 2 ) % 100;
+          printf("%i\n", flat_verts);
+        }
+      } else {
+        fdown = false;
+      }
+
+      draw_sectors( flat_verts );
 
       // put the stuff we've been drawing onto the display
       glfwSwapBuffers( g_window );
