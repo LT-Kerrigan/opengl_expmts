@@ -60,6 +60,10 @@ static inline vec3 v3_v4( vec4 v ) {
   return ( vec3 ){.x = v.x, .y = v.y, .z = v.z };
 }
 
+static inline vec2 sub_vec2_vec2( vec2 a, vec2 b ) {
+  return ( vec2 ){.x = a.x - b.x, .y = a.y - b.y };
+}
+
 static inline vec3 add_vec3_f( vec3 a, float b ) {
   return ( vec3 ){.x = a.x + b, .y = a.y + b, .z = a.z + b };
 }
@@ -92,12 +96,27 @@ static inline vec3 div_vec3_vec3( vec3 a, vec3 b ) {
   return ( vec3 ){.x = a.x / b.x, .y = a.y / b.y, .z = a.z / b.z };
 }
 
+static inline float length_vec2( vec2 v ) {
+  return sqrt( v.x * v.x + v.y * v.y );
+}
+
 static inline float length_vec3( vec3 v ) {
   return sqrt( v.x * v.x + v.y * v.y + v.z * v.z );
 }
 
 static inline float length2_vec3( vec3 v ) {
   return v.x * v.x + v.y * v.y + v.z * v.z;
+}
+
+static inline vec2 normalise_vec2( vec2 v ) {
+  vec2 vb;
+  float l = length_vec2( v );
+  if ( 0.0f == l ) {
+    return ( vec2 ){.x = 0.0f, .y = 0.0f };
+  }
+  vb.x = v.x / l;
+  vb.y = v.y / l;
+  return vb;
 }
 
 static inline vec3 normalise_vec3( vec3 v ) {
@@ -110,6 +129,10 @@ static inline vec3 normalise_vec3( vec3 v ) {
   vb.y = v.y / l;
   vb.z = v.z / l;
   return vb;
+}
+
+static inline float dot_vec2( vec2 a, vec2 b ) {
+  return a.x * b.x + a.y * b.y;
 }
 
 static inline float dot_vec3( vec3 a, vec3 b ) {

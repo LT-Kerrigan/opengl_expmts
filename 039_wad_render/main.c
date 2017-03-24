@@ -242,7 +242,7 @@ int main() {
 
       glUseProgram( program );
       glBindVertexArray( walls_vao );
-      // glDrawArrays( GL_TRIANGLES, 0, nwall_verts );
+      glDrawArrays( GL_TRIANGLES, 0, nwall_verts );
 
       static int flat_verts = 2;
 

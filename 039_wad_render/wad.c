@@ -504,6 +504,7 @@ float sign( vec2 p1, vec2 p2, vec2 p3 ) {
   return ( p1.x - p3.x ) * ( p2.y - p3.y ) - ( p2.x - p3.x ) * ( p1.y - p3.y );
 }
 
+// this is using a Hessian normal form test -- page 176
 bool PointInTriangle( vec2 pt, vec2 v1, vec2 v2, vec2 v3 ) {
   bool b1, b2, b3;
 
@@ -514,11 +515,32 @@ bool PointInTriangle( vec2 pt, vec2 v1, vec2 v2, vec2 v3 ) {
   return ( ( b1 == b2 ) && ( b2 == b3 ) );
 }
 
+// point inside triangle - john vince page 174
+// clockwise point order please
+float area_of_tri( vec2 a, vec2 b, vec2 c ) {
+  // A = 1/2 [a.x( b.y - c.y) + b.x(c.y - a.y ) + c.x(a.y - b.y )]
+  return 0.5f * ( a.x * ( b.y - c.y ) + b.x * ( c.y - a.y ) + c.x * ( a.y - b.y ) );
+}
+
+// clockwise point order please
+// NOTE if one area is zero and all others positive this point is on boundary
+//      if two areas are zero and other positive -> point is on a vertex
+bool is_point_in_tri( vec2 probe, vec2 a, vec2 b, vec2 c ) {
+  float aa = area_of_tri( a, b, probe );
+  float ab = area_of_tri( b, c, probe );
+  float ac = area_of_tri( c, a, probe );
+  if ( aa > 0.0f && ab > 0.0f && ac > 0.0f ) {
+    return true;
+  }
+  return false;
+}
+
 float flat_buffer[4096];
 int flat_points;
 int flat_comps;
 
 #define PHASE_B
+#define PHASE_C
 void earclip( int sector_idx ) {
   flat_comps = 0;
   flat_points = 0;
@@ -550,40 +572,48 @@ void earclip( int sector_idx ) {
   // START - (END/START) - (END/START) -....
   // NOTE ASSUMPTION TO SIMPLIFY -- only 2 linedefs share a vert per sector
   int vert_adjacency[2048] = { -1 };
-  bool slinedef_added[1024] = { false };
+  // bool slinedef_added[1024] = { false };
   int nlinedefs_added = 0;
   int num_adjacency = 0;
   { // phase 2 - order the vertices
-  // TODO change first one around if left/right is differnt
     int first_linedef_idx = sectors[sector_idx].linedefs[0];
     int first_vertex_idx = linedefs[first_linedef_idx].start_vertex_idx;
     int next_vertex_idx = linedefs[first_linedef_idx].end_vertex_idx;
+
+    // reverse if other-sided
+    int right_sidedef_idx = linedefs[first_linedef_idx].right_sidedef;
+    if ( right_sidedef_idx < 0 ||
+         sidedefs[right_sidedef_idx].sector != sector_idx ) {
+      first_vertex_idx = linedefs[first_linedef_idx].end_vertex_idx;
+      next_vertex_idx = linedefs[first_linedef_idx].start_vertex_idx;
+    }
+
     int last_vertex_idx = first_vertex_idx;
     vert_adjacency[num_adjacency++] = first_vertex_idx;
-    slinedef_added[0] = true;
+    //  slinedef_added[0] = true;
     nlinedefs_added++;
     int previous_ld = 0;
     int countdown = 1000;
     while ( nlinedefs_added < sectors[sector_idx].nlinedefs ) {
-      if (last_vertex_idx == next_vertex_idx) {
+      if ( last_vertex_idx == next_vertex_idx ) {
         break; // back to the beginning - ignore other lines ASSUMPTION!
         // but weird stuff was adding in after this point
       }
       countdown--;
-      assert(countdown);
+      assert( countdown );
 
-      //printf("sector %i looking for %i\n", sector_idx, next_vertex_idx);
+      // printf("sector %i looking for %i\n", sector_idx, next_vertex_idx);
       for ( int i = 0; i < sectors[sector_idx].nlinedefs; i++ ) {
         int linedef_idx = sectors[sector_idx].linedefs[i];
         int start_v_i = linedefs[linedef_idx].start_vertex_idx;
         int end_v_i = linedefs[linedef_idx].end_vertex_idx;
-        //if (sector_idx == 5) {
+        // if (sector_idx == 5) {
         // printf("lookat at %i - options %i and %i\n", i, start_v_i, end_v_i);
         //}
         if ( i == previous_ld ) {
           continue;
         }
-        
+
         if ( start_v_i == next_vertex_idx ) {
           vert_adjacency[num_adjacency++] = start_v_i;
           next_vertex_idx = end_v_i;
@@ -599,26 +629,194 @@ void earclip( int sector_idx ) {
         }
       }
     }
-    { // now add them in order
-      for ( int i = 0; i < num_adjacency; i++ ) {
-        int first_vertex_idx = vert_adjacency[i];
-        int b = ( i + 1 ) % num_adjacency;
-        int second_vertex_idx = vert_adjacency[b];
-        flat_buffer[flat_comps++] = (float)vertices[first_vertex_idx].x;
-        flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
-        flat_buffer[flat_comps++] = -(float)vertices[first_vertex_idx].y;
-        flat_buffer[flat_comps++] = (float)0;
-        flat_buffer[flat_comps++] = (float)1;
-        flat_buffer[flat_comps++] = (float)0;
-        flat_buffer[flat_comps++] = (float)vertices[second_vertex_idx].x;
-        flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
-        flat_buffer[flat_comps++] = -(float)vertices[second_vertex_idx].y;
-        flat_buffer[flat_comps++] = (float)0;
-        flat_buffer[flat_comps++] = (float)1;
-        flat_buffer[flat_comps++] = (float)0;
-        flat_points += 2;
+    /*  { // now add them in order
+        for ( int i = 0; i < num_adjacency; i++ ) {
+          int first_vertex_idx = vert_adjacency[i];
+          int b = ( i + 1 ) % num_adjacency;
+          int second_vertex_idx = vert_adjacency[b];
+          flat_buffer[flat_comps++] = (float)vertices[first_vertex_idx].x;
+          flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
+          flat_buffer[flat_comps++] = -(float)vertices[first_vertex_idx].y;
+          flat_buffer[flat_comps++] = (float)0;
+          flat_buffer[flat_comps++] = (float)1;
+          flat_buffer[flat_comps++] = (float)0;
+          flat_buffer[flat_comps++] = (float)vertices[second_vertex_idx].x;
+          flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
+          flat_buffer[flat_comps++] = -(float)vertices[second_vertex_idx].y;
+          flat_buffer[flat_comps++] = (float)0;
+          flat_buffer[flat_comps++] = (float)1;
+          flat_buffer[flat_comps++] = (float)0;
+          flat_points += 2;
+        }
+        sectors[sector_idx].nverts = sectors[sector_idx].nlinedefs * 2;
+      }*/
+  }
+#endif
+#ifdef PHASE_C // find ears
+  {
+    flat_points = 0;
+    flat_comps = 0;
+    int remaining_verts = num_adjacency;
+    int curr_ptr = 0, prev_ptr = remaining_verts - 1, next_ptr = 1;
+    // not > 3 because we add the last triangle on the last go
+    while ( remaining_verts > 2 ) {
+      //      --- > PART ONE ASSUME EVERYTHING IS AN EAR
+      //      --- > PART TWO base on 180 and proper ptrs
+      //      --- > PART THREE check if its inside me too
+      bool found_ear = true;
+
+      // --------------------look for ear to snip--------------------------
+
+      vec2 prev_vertex, curr_vertex, next_vertex;
+      int first_vertex_idx = vert_adjacency[prev_ptr];
+      int second_vertex_idx = vert_adjacency[curr_ptr];
+      int third_vertex_idx = vert_adjacency[next_ptr];
+      {
+
+        prev_vertex.x = (float)vertices[first_vertex_idx].x;
+        prev_vertex.y = (float)-vertices[first_vertex_idx].y;
+        curr_vertex.x = (float)vertices[second_vertex_idx].x;
+        curr_vertex.y = (float)-vertices[second_vertex_idx].y;
+        next_vertex.x = (float)vertices[third_vertex_idx].x;
+        next_vertex.y = (float)-vertices[third_vertex_idx].y;
       }
-      sectors[sector_idx].nverts = sectors[sector_idx].nlinedefs * 2;
+
+      { // angle <= 180  --- NOTE -- looks okay and never finishes the other way
+        // around
+        vec2 ptoc = sub_vec2_vec2( curr_vertex, prev_vertex );
+        vec2 cton = sub_vec2_vec2( next_vertex, curr_vertex );
+        vec2 nptoc = normalise_vec2( ptoc );
+        vec2 ncton = normalise_vec2( cton );
+        float dp = dot_vec2( nptoc, ncton );
+        if ( dp < 0.0f ) {
+  //        found_ear = false;
+  //        break;
+        }
+      }
+
+      // no vertex inside us (woohoohoo)
+      if ( found_ear ) {
+        for ( int i = 0; i < num_adjacency; i++ ) {
+
+          int probe_vertex_idx = vert_adjacency[i];
+          vec2 probe_vertex;
+          probe_vertex.x = (float)vertices[probe_vertex_idx].x;
+          probe_vertex.y = (float)-vertices[probe_vertex_idx].y;
+          if ( i == prev_ptr ) {
+            continue;
+          }
+          if ( i == curr_ptr ) {
+            continue;
+          }
+          if ( i == next_ptr ) {
+            continue;
+          }
+          if ( is_point_in_tri( probe_vertex, prev_vertex, curr_vertex,
+                                next_vertex ) ) {
+ //           found_ear = false;
+ //           break;
+          }
+        }
+      }
+
+      // stop drop and roll
+      if ( found_ear ) {
+        { // copy ear into buffer for triangles
+          flat_buffer[flat_comps++] = prev_vertex.x;
+          flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
+          flat_buffer[flat_comps++] = prev_vertex.y;
+          flat_buffer[flat_comps++] = (float)0;
+          flat_buffer[flat_comps++] = (float)1;
+          flat_buffer[flat_comps++] = (float)0;
+          flat_points++;
+          flat_buffer[flat_comps++] = curr_vertex.x;
+          flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
+          flat_buffer[flat_comps++] = curr_vertex.y;
+          flat_buffer[flat_comps++] = (float)0;
+          flat_buffer[flat_comps++] = (float)1;
+          flat_buffer[flat_comps++] = (float)0;
+          flat_points++;
+          flat_buffer[flat_comps++] = next_vertex.x;
+          flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
+          flat_buffer[flat_comps++] = next_vertex.y;
+          flat_buffer[flat_comps++] = (float)0;
+          flat_buffer[flat_comps++] = (float)1;
+          flat_buffer[flat_comps++] = (float)0;
+          flat_points++;
+          /*printf( "made tri from %i %i %i\n", first_vertex_idx, second_vertex_idx,
+                  third_vertex_idx );*/
+        }
+        { // shuffle array down
+          //printf( "removind vertex %i\n", vert_adjacency[curr_ptr] );
+          for ( int i = curr_ptr; i < remaining_verts - 1; i++ ) {
+            //printf( "vertex %i was %i\n", i, vert_adjacency[i] );
+            vert_adjacency[i] = vert_adjacency[i + 1];
+            //printf( "vertex %i is now %i\n", i, vert_adjacency[i] );
+          }
+          curr_ptr = ( curr_ptr ) % remaining_verts;
+          prev_ptr = ( curr_ptr - 1 );
+          if ( prev_ptr < 0 ) {
+            prev_ptr = remaining_verts - 1;
+          }
+          next_ptr = ( curr_ptr + 1 ) % remaining_verts;
+
+          /*printf( "cuur vertex is now %i\n", vert_adjacency[curr_ptr] );
+          printf( "n vertex is now %i\n", vert_adjacency[next_ptr] );
+          printf( "p vertex is now %i\n", vert_adjacency[prev_ptr] );*/
+
+          remaining_verts--;
+
+          /*    curr_ptr = curr_ptr % remaining_verts;
+              prev_ptr = curr_ptr - 1;
+              if ( prev_ptr < 0 ) {
+                prev_ptr = remaining_verts - 1;
+              }
+              next_ptr = ( curr_ptr + 1 ) % remaining_verts;*/
+        }
+
+        // TODO adjust current/rpev/next ptrs
+      } else {
+        curr_ptr = ( curr_ptr + 1 ) % remaining_verts;
+        prev_ptr = ( curr_ptr - 1 );
+        if ( prev_ptr < 0 ) {
+          prev_ptr = remaining_verts - 1;
+        }
+        next_ptr = ( curr_ptr + 1 ) % remaining_verts;
+
+        /*printf( "cuur vertex is now %i\n", vert_adjacency[curr_ptr] );
+        printf( "n vertex is now %i\n", vert_adjacency[next_ptr] );
+        printf( "p vertex is now %i\n", vert_adjacency[prev_ptr] );*/
+      }
+    }
+    { // add last triangle
+      /* int first_vertex_idx = vert_adjacency[0];
+       int second_vertex_idx = vert_adjacency[1];
+       int third_vertex_idx = vert_adjacency[2];
+       flat_buffer[flat_comps++] = (float)vertices[first_vertex_idx].x;
+       flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
+       flat_buffer[flat_comps++] = -(float)vertices[first_vertex_idx].y;
+       flat_buffer[flat_comps++] = (float)0;
+       flat_buffer[flat_comps++] = (float)1;
+       flat_buffer[flat_comps++] = (float)0;
+       flat_points++;
+
+       flat_buffer[flat_comps++] = (float)vertices[second_vertex_idx].x;
+       flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
+       flat_buffer[flat_comps++] = -(float)vertices[second_vertex_idx].y;
+       flat_buffer[flat_comps++] = (float)0;
+       flat_buffer[flat_comps++] = (float)1;
+       flat_buffer[flat_comps++] = (float)0;
+       flat_points++;
+
+       flat_buffer[flat_comps++] = (float)vertices[third_vertex_idx].x;
+       flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
+       flat_buffer[flat_comps++] = -(float)vertices[third_vertex_idx].y;
+       flat_buffer[flat_comps++] = (float)0;
+       flat_buffer[flat_comps++] = (float)1;
+       flat_buffer[flat_comps++] = (float)0;
+       flat_points++;*/
+
+      sectors[sector_idx].nverts = flat_points;
     }
   }
 #endif
@@ -638,6 +836,7 @@ void earclip( int sector_idx ) {
   }
 }
 
+// nsectors
 void fill_sectors() {
   for ( int sectidx = 0; sectidx < nsectors; sectidx++ ) {
     earclip( sectidx );
@@ -653,7 +852,7 @@ void draw_sectors( int verts ) {
       usev = sectors[sectidx].nverts;
     }
     glBindVertexArray( sectors[sectidx].floor_vao );
-    glDrawArrays( GL_LINES, 0, usev );
+    glDrawArrays( GL_TRIANGLES, 0, usev );
   }
 
   glEnable( GL_CULL_FACE );

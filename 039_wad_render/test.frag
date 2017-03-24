@@ -9,4 +9,5 @@ void main() {
 	float fac = max(0.0, dot(nn, vec3(0.0,0.0,1.0)));
 	gl_FragColor = vec4 (1.0, 1.0, 1.0, 1.0);
 	gl_FragColor.rgb = vec3(fac * 0.5 + 0.2);
+	gl_FragColor.r = 1.0;
 }
