@@ -1,5 +1,16 @@
 // WAD Rend - Copyright 2017 Anton Gerdelan <antonofnote@gmail.com>
 // C99
+/* TODO LIST
+1. add the hole-presevering "visibility" extension to the ear-clipping algorithm
+2. add ceilings back in
+3. create a separate shader for flats, retrieve+load the texture for the current sector and texture the floor / ceiling
+4. extract list of sprite locations - sprite textures will require quads per sprite type to be sized (or the sprite texture offset i guess)
+5. texture the walls using similar method to flats - will either need an atlas or perhaps batch walls by texture
+it's probably fine to render each individual sidedef as separate draw call too - they have unique texture offsets. otherwise could bake these
+into vertex data
+6. add lighting uniforms for sectors
+*/
+
 #include "gl_utils.h"
 #include "linmath.h"
 #include "wad.h"

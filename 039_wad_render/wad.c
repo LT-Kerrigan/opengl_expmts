@@ -851,6 +851,10 @@ void draw_sectors( int verts ) {
     if ( usev > sectors[sectidx].nverts ) {
       usev = sectors[sectidx].nverts;
     }
+
+    // temp
+    usev = sectors[sectidx].nverts;
+
     glBindVertexArray( sectors[sectidx].floor_vao );
     glDrawArrays( GL_TRIANGLES, 0, usev );
   }
