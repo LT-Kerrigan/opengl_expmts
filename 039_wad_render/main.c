@@ -98,6 +98,30 @@ int main() {
       if ( GLFW_PRESS == glfwGetKey( g_window, GLFW_KEY_ESCAPE ) ) {
         glfwSetWindowShouldClose( g_window, 1 );
       }
+      static int sector_idx = 0;
+      static bool zdown = false;
+      if ( GLFW_PRESS == glfwGetKey( g_window, GLFW_KEY_Z ) ) {
+        if ( !zdown ) {
+          sector_idx = (sector_idx + 1 ) % sector_count();
+          zdown = true;
+          printf("sector_idx=%i\n", sector_idx);
+        }
+      } else {
+        zdown = false;
+      }
+      static bool cdown = false;
+      if ( GLFW_PRESS == glfwGetKey( g_window, GLFW_KEY_C ) ) {
+        if ( !cdown ) {
+          sector_idx = (sector_idx - 1 ) % sector_count();
+          if (sector_idx < 0) {
+            sector_idx = sector_count() - 1;
+            printf("sector_idx=%i\n", sector_idx);
+          }
+          cdown = true;
+        }
+      } else {
+        cdown = false;
+      }
       static int polygon_mode = 2;
       static bool pdown = false;
       if ( GLFW_PRESS == glfwGetKey( g_window, GLFW_KEY_P ) ) {
@@ -192,7 +216,7 @@ int main() {
           mat4 R = quat_to_mat4( quaternion );
 
           fwd = mult_mat4_vec4( Ry, ( vec4 ){ 0.0, 0.0, -1.0, 0.0 } );
-          print_vec4( fwd );
+         // print_vec4( fwd );
           rgt = mult_mat4_vec4( R, ( vec4 ){ 1.0, 0.0, 0.0, 0.0 } );
           // up = mult_mat4_vec4( R, ( vec4 ){ 0.0, 1.0, 0.0, 0.0 } );
         }
@@ -235,7 +259,7 @@ int main() {
           cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( fwd ), -move.z ) );
           cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( up ), move.y ) );
           cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( rgt ), move.x ) );
-          print_vec3( cam_pos );
+         // print_vec3( cam_pos );
           mat4 T = translate_mat4( cam_pos );
 
           view_mat = mult_mat4_mat4( inverse_mat4( R ), inverse_mat4( T ) );
@@ -268,7 +292,7 @@ int main() {
         fdown = false;
       }
 
-      draw_sectors( flat_verts );
+      draw_sectors( flat_verts, sector_idx );
 
       // put the stuff we've been drawing onto the display
       glfwSwapBuffers( g_window );

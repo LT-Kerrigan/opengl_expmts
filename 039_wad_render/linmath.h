@@ -20,6 +20,7 @@ http://immersivemath.com/ila/ch03_dotproduct/ch03.html
 #pragma once
 #include <stdio.h>
 #define _USE_MATH_DEFINES
+#include <assert.h>
 #include <math.h>
 #include <string.h>
 #ifndef M_PI // C99 removed M_PI
@@ -27,6 +28,16 @@ http://immersivemath.com/ila/ch03_dotproduct/ch03.html
 #endif
 #define ONE_DEG_IN_RAD ( 2.0 * M_PI ) / 360.0 // 0.017444444
 #define ONE_RAD_IN_DEG 360.0 / ( 2.0 * M_PI ) // 57.2957795
+#define MIN( a, b ) ( ( a ) < ( b ) ? ( a ) : ( b ) )
+#define MAX( a, b ) ( ( a ) > ( b ) ? ( a ) : ( b ) )
+#define CLAMP( x, lo, hi ) ( MIN( hi, MAX( lo, x ) ) )
+
+static int loopmod( int val, int divisor ) {
+  if ( val < 0 ) {
+    val = divisor + val;
+  }
+  return val % divisor;
+}
 
 typedef struct vec2 { float x, y; } vec2;
 typedef struct vec3 { float x, y, z; } vec3;
@@ -96,9 +107,7 @@ static inline vec3 div_vec3_vec3( vec3 a, vec3 b ) {
   return ( vec3 ){.x = a.x / b.x, .y = a.y / b.y, .z = a.z / b.z };
 }
 
-static inline float length_vec2( vec2 v ) {
-  return sqrt( v.x * v.x + v.y * v.y );
-}
+static inline float length_vec2( vec2 v ) { return sqrt( v.x * v.x + v.y * v.y ); }
 
 static inline float length_vec3( vec3 v ) {
   return sqrt( v.x * v.x + v.y * v.y + v.z * v.z );
@@ -131,9 +140,7 @@ static inline vec3 normalise_vec3( vec3 v ) {
   return vb;
 }
 
-static inline float dot_vec2( vec2 a, vec2 b ) {
-  return a.x * b.x + a.y * b.y;
-}
+static inline float dot_vec2( vec2 a, vec2 b ) { return a.x * b.x + a.y * b.y; }
 
 static inline float dot_vec3( vec3 a, vec3 b ) {
   return a.x * b.x + a.y * b.y + a.z * b.z;
@@ -509,4 +516,121 @@ static inline vec3 normal_from_triangle( vec3 a, vec3 b, vec3 c ) {
   vec3 cross = cross_vec3( edge_ab, edge_bc );
   vec3 n = normalise_vec3( cross );
   return n;
+}
+
+// assumption: interior of simple polygon is TO THE RIGHT
+// i.e. is going in clockwise order around a polygon
+// note: this is the opposite to what i would have called convex/concave
+static inline bool is_vec2_convex( vec2 prev, vec2 curr, vec2 next ) {
+  vec3 fwd, up, rgt;
+  vec2 rgtv2, probev2;
+
+  vec2 prev_to_curr = sub_vec2_vec2( curr, prev );
+  vec2 curr_to_next = sub_vec2_vec2( next, curr );
+
+  fwd.x = prev_to_curr.x;
+  fwd.y = 0.0f;
+  fwd.z = prev_to_curr.y;
+  fwd = normalise_vec3( fwd );
+
+  up = ( vec3 ){ 0, 1, 0 };
+
+  rgt = cross_vec3( fwd, up );
+
+  rgtv2.x = rgt.x;
+  rgtv2.y = rgt.z;
+  probev2 = normalise_vec2( curr_to_next );
+
+  float dp = dot_vec2( rgtv2, probev2 );
+
+  if ( dp <= 0.0f ) {
+    return false;
+  }
+  return true;
+}
+
+// note: CLOCKWISE point order please
+static inline float area_of_tri( vec2 a, vec2 b, vec2 c ) {
+  return 0.5f * ( a.x * ( b.y - c.y ) + b.x * ( c.y - a.y ) + c.x * ( a.y - b.y ) );
+}
+
+// point inside triangle - john vince page 174
+// note: CLOCKWISE point order please
+// note: if one area is zero and all others positive this point is on boundary
+//       if two areas are zero and other positive -> point is on a vertex
+static inline bool is_vec2_in_tri( vec2 probe, vec2 a, vec2 b, vec2 c ) {
+  float aa = area_of_tri( a, b, probe );
+  float ab = area_of_tri( b, c, probe );
+  float ac = area_of_tri( c, a, probe );
+  if ( aa > 0.0f && ab > 0.0f && ac > 0.0f ) {
+    return true;
+  }
+  return false;
+}
+
+// note: verts should be ORDERERD in sequence, taking RIGHT-HAND turns around
+// note: WILL NOT WORK on non-simple polygon
+// returns index of ear
+// -- inside_us versus a second original list (DOES THIS DO ANYTHING?)
+// TODO -- do a hole-finding version using a third list
+static inline int find_ear_in_simple_polygon( vec2 *verts, int nverts,
+                                              vec2 *original_verts,
+                                              int original_nverts ) {
+  int current = 0;
+  bool ear_found = false;
+  while ( !ear_found ) {
+    int prev = loopmod( current - 1, nverts );
+    int next = loopmod( current + 1, nverts );
+    vec2 curr_vec2 = verts[current];
+    vec2 prev_vec2 = verts[prev];
+    vec2 next_vec2 = verts[next];
+    next_vec2.y = -next_vec2.y;
+    prev_vec2.y = -prev_vec2.y;
+    curr_vec2.y = -curr_vec2.y;
+    // WORKS
+    bool current_is_convex = is_vec2_convex( prev_vec2, curr_vec2, next_vec2 );
+    // current_is_convex = true;
+    if ( current_is_convex ) {
+      ear_found = true; // unless disproven shortly
+      // make sure no CONCAVE are inside
+      for ( int probe = 0; probe < original_nverts; probe++ ) {
+        // dunno if i need this --> not if triangle test successfully ignore same sames
+        // took it out cos using original list and numbers differed
+        //if ( probe == current || probe == prev || probe == next ) {
+        //  continue;
+        //}
+        int probe_prev = loopmod( probe - 1, original_nverts );
+        int probe_next = loopmod( probe + 1, original_nverts );
+        vec2 probe_curr_vec2 = original_verts[probe];
+        vec2 probe_prev_vec2 = original_verts[probe_prev];
+        vec2 probe_next_vec2 = original_verts[probe_next];
+        probe_next_vec2.y = -probe_next_vec2.y;
+        probe_prev_vec2.y = -probe_prev_vec2.y;
+        probe_curr_vec2.y = -probe_curr_vec2.y;
+        bool probe_is_convex =
+          is_vec2_convex( probe_prev_vec2, probe_curr_vec2, probe_next_vec2 );
+        // NOTE: worked better when removing the above test
+        probe_is_convex = false;
+        if ( !probe_is_convex ) {
+          // WORKS
+          bool is_inside_us =
+            is_vec2_in_tri( probe_prev_vec2, prev_vec2, curr_vec2, next_vec2 );
+          if ( is_inside_us ) {
+            printf( "pt inside us\n" );
+            ear_found = false;
+            break;
+          }
+        }
+      } // endfor probe
+    }   // endif current_is_convex
+    if ( ear_found ) {
+      break; // ear found
+    }
+    current++;
+    if ( current == nverts ) {
+      printf( "WARNING: no ear found\n" );
+      return -1;
+    }
+  } // endwhile
+  return current;
 }
