@@ -3,10 +3,14 @@
 /* TODO LIST
 1. add the hole-presevering "visibility" extension to the ear-clipping algorithm
 2. add ceilings back in
-3. create a separate shader for flats, retrieve+load the texture for the current sector and texture the floor / ceiling
-4. extract list of sprite locations - sprite textures will require quads per sprite type to be sized (or the sprite texture offset i guess)
-5. texture the walls using similar method to flats - will either need an atlas or perhaps batch walls by texture
-it's probably fine to render each individual sidedef as separate draw call too - they have unique texture offsets. otherwise could bake these
+3. create a separate shader for flats, retrieve+load the texture for the current
+sector and texture the floor / ceiling
+4. extract list of sprite locations - sprite textures will require quads per sprite
+type to be sized (or the sprite texture offset i guess)
+5. texture the walls using similar method to flats - will either need an atlas or
+perhaps batch walls by texture
+it's probably fine to render each individual sidedef as separate draw call too -
+they have unique texture offsets. otherwise could bake these
 into vertex data
 6. add lighting uniforms for sectors
 */
@@ -20,26 +24,35 @@ into vertex data
 
 #define VERTEX_SHADER_FILE "test.vert"
 #define FRAGMENT_SHADER_FILE "test.frag"
+#define FLATS_VERTEX_SHADER_FILE "flat.vert"
+#define FLATS_FRAGMENT_SHADER_FILE "flat.frag"
 
 GLuint walls_vao;
 int nwall_verts;
-GLuint program;
+GLuint program, flats_program;
 int view_mat_location = -1, proj_mat_location = -1;
+int flats_program_view_mat_location = -1, flats_program_proj_mat_location = -1;
+mat4 proj_mat, view_mat;
 
-int main(int argc, char** argv) {
+int main( int argc, char **argv ) {
   { // startup
     printf( "WAD Rend - Anton Gerdelan\n" );
-    if (argc < 3) {
-      printf("usage: wadrend WADNAME.WAD MAPNAME\ne.g. ./wadrend DOOM1.WAD E1M1\n");
+    if ( argc < 3 ) {
+      printf(
+        "usage: wadrend WADNAME.WAD MAPNAME\ne.g. ./wadrend DOOM1.WAD E1M1\n" );
       return 0;
     }
 
-    open_wad( argv[1], argv[2] );
     start_opengl();
+    open_wad( argv[1], argv[2] );
     program =
       create_programme_from_files( VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE );
     view_mat_location = glGetUniformLocation( program, "view" );
     proj_mat_location = glGetUniformLocation( program, "proj" );
+    flats_program = create_programme_from_files( FLATS_VERTEX_SHADER_FILE,
+                                                 FLATS_FRAGMENT_SHADER_FILE );
+    flats_program_view_mat_location = glGetUniformLocation( flats_program, "view" );
+    flats_program_proj_mat_location = glGetUniformLocation( flats_program, "proj" );
   }
   { // extract and construct wall geometry
     size_t max_geom_sz = 1024 * 1024;
@@ -71,7 +84,7 @@ int main(int argc, char** argv) {
   versor quaternion =
     quat_from_axis_deg( -cam_heading, ( vec3 ){ 0.0f, 1.0f, 0.0f } );
   mat4 R = quat_to_mat4( quaternion );
-  mat4 view_mat = mult_mat4_mat4( R, T );
+  view_mat = mult_mat4_mat4( R, T );
   // keep track of some useful vectors that can be used for keyboard movement
   vec4 fwd = ( vec4 ){ 0.0f, 0.0f, -1.0f, 0.0f };
   vec4 rgt = ( vec4 ){ 1.0f, 0.0f, 0.0f, 0.0f };
@@ -105,9 +118,9 @@ int main(int argc, char** argv) {
       static bool zdown = false;
       if ( GLFW_PRESS == glfwGetKey( g_window, GLFW_KEY_Z ) ) {
         if ( !zdown ) {
-          sector_idx = (sector_idx + 1 ) % sector_count();
+          sector_idx = ( sector_idx + 1 ) % sector_count();
           zdown = true;
-          printf("sector_idx=%i\n", sector_idx);
+          printf( "sector_idx=%i\n", sector_idx );
         }
       } else {
         zdown = false;
@@ -115,10 +128,10 @@ int main(int argc, char** argv) {
       static bool cdown = false;
       if ( GLFW_PRESS == glfwGetKey( g_window, GLFW_KEY_C ) ) {
         if ( !cdown ) {
-          sector_idx = (sector_idx - 1 ) % sector_count();
-          if (sector_idx < 0) {
+          sector_idx = ( sector_idx - 1 ) % sector_count();
+          if ( sector_idx < 0 ) {
             sector_idx = sector_count() - 1;
-            printf("sector_idx=%i\n", sector_idx);
+            printf( "sector_idx=%i\n", sector_idx );
           }
           cdown = true;
         }
@@ -219,7 +232,7 @@ int main(int argc, char** argv) {
           mat4 R = quat_to_mat4( quaternion );
 
           fwd = mult_mat4_vec4( Ry, ( vec4 ){ 0.0, 0.0, -1.0, 0.0 } );
-         // print_vec4( fwd );
+          // print_vec4( fwd );
           rgt = mult_mat4_vec4( R, ( vec4 ){ 1.0, 0.0, 0.0, 0.0 } );
           // up = mult_mat4_vec4( R, ( vec4 ){ 0.0, 1.0, 0.0, 0.0 } );
         }
@@ -262,23 +275,21 @@ int main(int argc, char** argv) {
           cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( fwd ), -move.z ) );
           cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( up ), move.y ) );
           cam_pos = add_vec3_vec3( cam_pos, mult_vec3_f( v3_v4( rgt ), move.x ) );
-         // print_vec3( cam_pos );
+          // print_vec3( cam_pos );
           mat4 T = translate_mat4( cam_pos );
 
           view_mat = mult_mat4_mat4( inverse_mat4( R ), inverse_mat4( T ) );
         }
         float aspect = (float)g_gl_width / (float)g_gl_height;
-        mat4 proj_mat = perspective( 67, aspect, 10.0, 10000.0 );
-
-        glUseProgram( program );
-        glUniformMatrix4fv( view_mat_location, 1, GL_FALSE, view_mat.m );
-        glUniformMatrix4fv( proj_mat_location, 1, GL_FALSE, proj_mat.m );
+        proj_mat = perspective( 67, aspect, 10.0, 10000.0 );
       }
 
       glViewport( 0, 0, g_gl_width, g_gl_height );
       glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
       glUseProgram( program );
+      glUniformMatrix4fv( view_mat_location, 1, GL_FALSE, view_mat.m );
+      glUniformMatrix4fv( proj_mat_location, 1, GL_FALSE, proj_mat.m );
       glBindVertexArray( walls_vao );
       glDrawArrays( GL_TRIANGLES, 0, nwall_verts );
 
@@ -289,12 +300,17 @@ int main(int argc, char** argv) {
         if ( !fdown ) {
           fdown = true;
           flat_verts = ( flat_verts + 2 ) % 100;
-          printf("%i\n", flat_verts);
+          printf( "%i\n", flat_verts );
         }
       } else {
         fdown = false;
       }
 
+      glUseProgram( flats_program );
+      glUniformMatrix4fv( flats_program_view_mat_location, 1, GL_FALSE,
+                          view_mat.m );
+      glUniformMatrix4fv( flats_program_proj_mat_location, 1, GL_FALSE,
+                          proj_mat.m );
       draw_sectors( flat_verts, sector_idx );
 
       // put the stuff we've been drawing onto the display

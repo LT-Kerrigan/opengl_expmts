@@ -4,10 +4,15 @@
 #include "apg_data_structs.h"
 #include "gl_utils.h"
 #include "linmath.h"
+#include <alloca.h> // malloc.h for win32?
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+char wad_filename[1024];
+
+typedef unsigned char byte_t;
 
 typedef struct dir_entry_t {
   int addr;
@@ -50,6 +55,8 @@ typedef struct sector_t {
   GLuint floor_vao, ceil_vao; // and this
   GLuint floor_vbo, ceil_vbo; // and this
   int nverts;                 // and this
+  GLuint gl_floor_texture;    // and this
+  GLuint gl_ceil_texture;     // and this
 } sector_t;
 
 static char wad_type[5];
@@ -71,14 +78,54 @@ int sector_count() { return nsectors; }
 // custom strcmp to avoid commonly-made ==0 bracket soup bugs
 // returns true if true so far and one string shorter e.g. "ANT" "ANTON"
 bool apg_strmatchy( const char *a, const char *b ) {
-  int len_a = strlen( a );
-  int len_b = strlen( b );
-  for ( int i = 0; ( i < len_a && i < len_b ); i++ ) {
+  int len = MAX( strlen( a ), strlen( b ) );
+  for ( int i = 0;  i <len; i++ ) {
     if ( a[i] != b[i] ) {
       return false;
     }
   }
   return true;
+}
+
+// for convenience
+typedef struct rgb_t { byte_t r, g, b; } rgb_t;
+
+// for type safety
+typedef enum pal_t {
+  PAL_DEFAULT = 0,
+  PAL_1,
+  PAL_2,
+  PAL_3,
+  PAL_4,
+  PAL_5,
+  PAL_6,
+  PAL_7,
+  PAL_8,
+  PAL_9,
+  PAL_10,
+  PAL_11,
+  PAL_12,
+  PAL_13,
+  PAL_MAX
+} pal_t;
+
+byte_t *palettes[PAL_MAX];
+
+// for convenience/safety
+rgb_t rgb_from_palette( byte_t colour_idx, pal_t pal ) {
+  assert( colour_idx < 256 && colour_idx >= 0 );
+  assert( pal < PAL_MAX && pal >= PAL_DEFAULT );
+  assert( palettes[pal] );
+
+  int pal_idx = (int)pal;
+  assert( palettes[pal_idx] );
+
+  rgb_t rgb;
+  rgb.r = palettes[pal_idx][colour_idx * 3];
+  rgb.g = palettes[pal_idx][colour_idx * 3 + 1];
+  rgb.b = palettes[pal_idx][colour_idx * 3 + 2];
+
+  return rgb;
 }
 
 /* --> going to assume these are always in this order (DOOM registered v ~1993)
@@ -97,12 +144,92 @@ every linedef is
 tag e.g. sector number to affect except doors - always sector on other side of line)
 */
 
+int get_wad_dir_index( const char *name ) {
+  for ( int i = 0; i < ndir_entries; i++ ) {
+    if ( apg_strmatchy( dir_entries[i].name, name ) ) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// TODO if already loaded return same index
+GLuint load_wad_texture( const char *texture_name ) {
+  GLuint tex = 0;
+  // HACK workaround
+  if (apg_strmatchy(texture_name, "FLTLAVA1")) {
+    return tex;
+  }
+
+  // look up palette RGB for each bytes and draw with stb_image
+  const size_t flat_sz = 4096;
+  byte_t *index_buff = alloca( flat_sz );
+  assert( index_buff );
+  byte_t *pixel_buff = alloca( flat_sz * 3 ); // rgb
+  assert( pixel_buff );
+
+  int dir_idx = get_wad_dir_index( texture_name );
+  if ( dir_idx < 0 ) {
+    fprintf( stderr, "ERROR: could find texture for flat `%s` in WAD dir\n",
+             texture_name );
+    return tex;
+  }
+
+  { // read from WAD
+    FILE *f = fopen( wad_filename, "rb" );
+    if ( !f ) {
+      fprintf( stderr, "ERROR: could not open file `%s`\n", wad_filename );
+      return tex;
+    }
+    int ret = fseek( f, dir_entries[dir_idx].addr, SEEK_SET );
+    assert( ret != -1 );
+    // these are colour indices into the rgb palette
+    size_t ritems = fread( index_buff, 1, flat_sz, f );
+    if ( ritems != dir_entries[dir_idx].sz ) {
+      printf( "%s\n", texture_name );
+      assert( 0 );
+    }
+    fclose( f );
+  }
+
+  // use pixel in palette[0] (normal view) as o/p pixel RGB
+  for ( int j = 0; j < flat_sz; j++ ) {
+    rgb_t rgb = rgb_from_palette( index_buff[j], PAL_DEFAULT );
+    pixel_buff[j * 3] = rgb.r;
+    pixel_buff[j * 3 + 1] = rgb.g;
+    pixel_buff[j * 3 + 2] = rgb.b;
+  }
+  {
+
+    glActiveTexture( GL_TEXTURE0 );
+    glGenTextures( 1, &tex );
+    glBindTexture( GL_TEXTURE_2D, tex );
+    glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 64, 64, 0, GL_RGB, GL_UNSIGNED_BYTE,
+                  pixel_buff );
+    glGenerateMipmap( GL_TEXTURE_2D );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                     GL_LINEAR_MIPMAP_LINEAR );
+    GLfloat max_aniso = 0.0f;
+    glGetFloatv( GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_aniso );
+    // set the maximum!
+    glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, max_aniso );
+  }
+
+  printf( "loaded texture %s as handle %i\n", texture_name, tex );
+
+  return tex;
+}
+
 bool open_wad( const char *filename, const char *map_name ) {
   FILE *f = fopen( filename, "rb" );
   if ( !f ) {
     fprintf( stderr, "ERROR: could not open file `%s`\n", filename );
     return false;
   }
+  strcpy( wad_filename, filename );
   { // header
     fread( wad_type, 1, 4, f );
     printf( "%s\n", wad_type );
@@ -125,7 +252,23 @@ bool open_wad( const char *filename, const char *map_name ) {
       // printf( "%s ", dir_entries[dir_idx].name );
     }
   }
-  {   // extract map stuff
+  { // extract map stuff
+    {
+      int dir_idx = get_wad_dir_index( "PLAYPAL" );
+      assert( dir_idx > -1 );
+      int ret = fseek( f, (long)dir_entries[dir_idx].addr, SEEK_SET );
+
+      assert( ret != -1 );
+      // i think we can write them out as images
+      for ( int palette_idx = 0; palette_idx < PAL_MAX; palette_idx++ ) {
+        const size_t palette_sz = 768;
+        palettes[palette_idx] = (byte_t *)malloc( palette_sz );
+        assert( palettes[palette_idx] );
+
+        size_t ritems = fread( palettes[palette_idx], 1, palette_sz, f );
+        assert( ritems == palette_sz );
+      }
+    }
     { // THINGS
       ;
     }
@@ -143,6 +286,10 @@ bool open_wad( const char *filename, const char *map_name ) {
         fread( &sectors[sidx].light_level, 2, 1, f );
         fread( &sectors[sidx].type, 2, 1, f );
         fread( &sectors[sidx].tag, 2, 1, f );
+
+        // load the texture -- TODO dont reload the same textures
+        sectors[sidx].gl_floor_texture =
+          load_wad_texture( sectors[sidx].floor_texture_name );
       }
     }
     { // LINEDEFS
@@ -186,6 +333,8 @@ bool open_wad( const char *filename, const char *map_name ) {
         fread( &vertices[vidx].x, 2, 1, f );
         fread( &vertices[vidx].y, 2, 1, f );
       }
+    }
+    { // FLATS
     }
 
   } // endgeomblock
@@ -649,25 +798,23 @@ void earclip( int sector_idx ) {
 
             // append hole and joining line
             if ( last_vertex_idx == next_vertex_idx ) {
-              printf("=================before:==================\n");
+              printf( "=================before:==================\n" );
               for ( int i = 0; i < num_adjacency; i++ ) {
-                printf("%i,", vert_adjacency[i]);
+                printf( "%i,", vert_adjacency[i] );
               }
-              printf("\n");
+              printf( "\n" );
 
               // 0. reverse hole list
-           /*   for ( int i = 0; i < nhole_adjacency / 2; i++ ) {
-                int tmp = hole_adjacency[i];
-                hole_adjacency[i] = hole_adjacency[nhole_adjacency - 1 - i];
-                hole_adjacency[nhole_adjacency - 1 - i] = tmp;
-              }*/
+              /*   for ( int i = 0; i < nhole_adjacency / 2; i++ ) {
+                   int tmp = hole_adjacency[i];
+                   hole_adjacency[i] = hole_adjacency[nhole_adjacency - 1 - i];
+                   hole_adjacency[nhole_adjacency - 1 - i] = tmp;
+                 }*/
 
               for ( int i = 0; i < nhole_adjacency; i++ ) {
-                printf("%i,", hole_adjacency[i]);
+                printf( "%i,", hole_adjacency[i] );
               }
-              printf("\n");
-
-              
+              printf( "\n" );
 
               // 1. find hole point with maximum x value
               int max_pt_idx = 0;
@@ -683,13 +830,15 @@ void earclip( int sector_idx ) {
               // 2. CHEATING (should cast a ray and blah blah)
               int closest_pt_idx = 0;
               int closest_pt_dist = vertices[vert_adjacency[0]].x - max_x_val;
-              printf( "candidate idx %i x %i dist %i\n", 0, vertices[vert_adjacency[0]].x, closest_pt_dist );
-    
+              printf( "candidate idx %i x %i dist %i\n", 0,
+                      vertices[vert_adjacency[0]].x, closest_pt_dist );
+
               for ( int i = 1; i < num_adjacency; i++ ) {
                 int x = vertices[vert_adjacency[i]].x;
                 int dist = x - max_x_val;
                 printf( "candidate idx %i x %i dist %i\n", i, x, dist );
-                if ( closest_pt_dist < 0 || (dist > 0 && dist < closest_pt_dist) ) {
+                if ( closest_pt_dist < 0 ||
+                     ( dist > 0 && dist < closest_pt_dist ) ) {
                   closest_pt_dist = dist;
                   closest_pt_idx = i;
                 }
@@ -701,35 +850,35 @@ void earclip( int sector_idx ) {
               // BACKUP BECAUSE FUCK ALL THESE FUCKING ARRAY OPERATIONS IN C
               int tmp_array[4096];
               int backup_length = 0;
-              for (int i = closest_pt_idx; i < num_adjacency; i++) {
+              for ( int i = closest_pt_idx; i < num_adjacency; i++ ) {
                 tmp_array[backup_length] = vert_adjacency[i];
                 backup_length++;
               }
 
               // insert reversed hole at point AFTER closest_pt_idx
-              for (int i = 0; i < nhole_adjacency; i++) {
+              for ( int i = 0; i < nhole_adjacency; i++ ) {
                 int at = closest_pt_idx + 1;
-                int hole_idx = loopmod(max_pt_idx + i, nhole_adjacency);
+                int hole_idx = loopmod( max_pt_idx + i, nhole_adjacency );
                 vert_adjacency[at + i] = hole_adjacency[hole_idx];
               }
               num_adjacency += nhole_adjacency;
-              
+
               // add start of hole segment again
               int at = closest_pt_idx + nhole_adjacency + 1;
               vert_adjacency[at] = hole_adjacency[max_pt_idx];
               num_adjacency++;
               // add rest or array (starting with duplicating earlier end)
-              for (int i = 0; i < backup_length; i++) {
-                vert_adjacency[closest_pt_idx + nhole_adjacency + 2 + i] = tmp_array[i];
+              for ( int i = 0; i < backup_length; i++ ) {
+                vert_adjacency[closest_pt_idx + nhole_adjacency + 2 + i] =
+                  tmp_array[i];
               }
               num_adjacency = closest_pt_idx + nhole_adjacency + 2 + backup_length;
 
-
-              printf("after:\n");
+              printf( "after:\n" );
               for ( int i = 0; i < num_adjacency; i++ ) {
-                printf("%i,", vert_adjacency[i]);
+                printf( "%i,", vert_adjacency[i] );
               }
-              printf("\n");
+              printf( "\n" );
 
               /*
                             int prior_end = vert_adjacency[num_adjacency-1];
@@ -942,6 +1091,10 @@ void draw_sectors( int verts, int sectidx ) {
     usev = sectors[sectidx].nverts;
 
     glBindVertexArray( sectors[sectidx].floor_vao );
+
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_2D, sectors[sectidx].gl_floor_texture );
+
     glDrawArrays( GL_TRIANGLES, 0, usev );
   }
 
