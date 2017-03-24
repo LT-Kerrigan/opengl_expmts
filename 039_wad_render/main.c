@@ -18,8 +18,6 @@ into vertex data
 #include <stdio.h>
 #include <stdlib.h>
 
-#define WAD_FILE "DOOM1.WAD"
-#define MAP_NAME "E1M1"
 #define VERTEX_SHADER_FILE "test.vert"
 #define FRAGMENT_SHADER_FILE "test.frag"
 
@@ -28,10 +26,15 @@ int nwall_verts;
 GLuint program;
 int view_mat_location = -1, proj_mat_location = -1;
 
-int main() {
+int main(int argc, char** argv) {
   { // startup
     printf( "WAD Rend - Anton Gerdelan\n" );
-    open_wad( WAD_FILE, MAP_NAME );
+    if (argc < 3) {
+      printf("usage: wadrend WADNAME.WAD MAPNAME\ne.g. ./wadrend DOOM1.WAD E1M1\n");
+      return 0;
+    }
+
+    open_wad( argv[1], argv[2] );
     start_opengl();
     program =
       create_programme_from_files( VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE );
