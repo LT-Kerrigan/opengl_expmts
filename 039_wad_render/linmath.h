@@ -571,11 +571,9 @@ static inline bool is_vec2_in_tri( vec2 probe, vec2 a, vec2 b, vec2 c ) {
 // note: verts should be ORDERERD in sequence, taking RIGHT-HAND turns around
 // note: WILL NOT WORK on non-simple polygon
 // returns index of ear
-// -- inside_us versus a second original list (DOES THIS DO ANYTHING?)
+// -- inside_us versus a second original list (DOES THIS DO ANYTHING? - dont think so)
 // TODO -- do a hole-finding version using a third list
-static inline int find_ear_in_simple_polygon( vec2 *verts, int nverts,
-                                              vec2 *original_verts,
-                                              int original_nverts ) {
+static inline int find_ear_in_simple_polygon( vec2 *verts, int nverts ) {
   int current = 0;
   bool ear_found = false;
   while ( !ear_found ) {
@@ -593,17 +591,17 @@ static inline int find_ear_in_simple_polygon( vec2 *verts, int nverts,
     if ( current_is_convex ) {
       ear_found = true; // unless disproven shortly
       // make sure no CONCAVE are inside
-      for ( int probe = 0; probe < original_nverts; probe++ ) {
+      for ( int probe = 0; probe < nverts; probe++ ) {
         // dunno if i need this --> not if triangle test successfully ignore same sames
         // took it out cos using original list and numbers differed
-        //if ( probe == current || probe == prev || probe == next ) {
-        //  continue;
-        //}
-        int probe_prev = loopmod( probe - 1, original_nverts );
-        int probe_next = loopmod( probe + 1, original_nverts );
-        vec2 probe_curr_vec2 = original_verts[probe];
-        vec2 probe_prev_vec2 = original_verts[probe_prev];
-        vec2 probe_next_vec2 = original_verts[probe_next];
+        if ( probe == current || probe == prev || probe == next ) {
+          continue;
+        }
+        int probe_prev = loopmod( probe - 1, nverts );
+        int probe_next = loopmod( probe + 1, nverts );
+        vec2 probe_curr_vec2 = verts[probe];
+        vec2 probe_prev_vec2 = verts[probe_prev];
+        vec2 probe_next_vec2 = verts[probe_next];
         probe_next_vec2.y = -probe_next_vec2.y;
         probe_prev_vec2.y = -probe_prev_vec2.y;
         probe_curr_vec2.y = -probe_curr_vec2.y;
@@ -616,7 +614,6 @@ static inline int find_ear_in_simple_polygon( vec2 *verts, int nverts,
           bool is_inside_us =
             is_vec2_in_tri( probe_prev_vec2, prev_vec2, curr_vec2, next_vec2 );
           if ( is_inside_us ) {
-            printf( "pt inside us\n" );
             ear_found = false;
             break;
           }
@@ -628,7 +625,6 @@ static inline int find_ear_in_simple_polygon( vec2 *verts, int nverts,
     }
     current++;
     if ( current == nverts ) {
-      printf( "WARNING: no ear found\n" );
       return -1;
     }
   } // endwhile

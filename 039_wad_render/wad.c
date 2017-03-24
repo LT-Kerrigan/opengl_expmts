@@ -553,10 +553,12 @@ void earclip( int sector_idx ) {
   // build adjacent vertex list like this:
   // START - (END/START) - (END/START) -....
   // NOTE ASSUMPTION TO SIMPLIFY -- only 2 linedefs share a vert per sector
-  int vert_adjacency[2048] = { -1 };
+  int vert_adjacency[4096] = { -1 };
+  int hole_adjacency[4096] = { -1 };
   // bool slinedef_added[1024] = { false };
   int nlinedefs_added = 0;
   int num_adjacency = 0;
+  int nhole_adjacency = 0;
   { // phase 2 - order the vertices
     int first_linedef_idx = sectors[sector_idx].linedefs[0];
     int first_vertex_idx = linedefs[first_linedef_idx].start_vertex_idx;
@@ -575,38 +577,189 @@ void earclip( int sector_idx ) {
     //  slinedef_added[0] = true;
     nlinedefs_added++;
     int previous_ld = 0;
-    int countdown = 1000;
+    int countdown = 1024;
     bool slinedef_claimed[2048] = { false };
     slinedef_claimed[0] = true;
     while ( nlinedefs_added < sectors[sector_idx].nlinedefs ) {
-      // can i assume just one hole and CUT INTO the original?
       if ( last_vertex_idx == next_vertex_idx ) {
-        // back to the beginning - ignore other lines ASSUMPTION! -- nope need to
-        // get holes too!
-        // but weird stuff was adding in after this point
 
-        /* // find unclaimed points  -- NOTE NEEDS SECOND ALGORITHM TO WORK --
-         SECODN LIST OF CONVEX POINTS PROBABLY
-         for ( int i = 0; i < sectors[sector_idx].nlinedefs; i++ ) {
-           if ( !slinedef_claimed[i] ) {
-             int c_linedef_idx = sectors[sector_idx].linedefs[i];
-             int first_vertex_idx = linedefs[c_linedef_idx].start_vertex_idx;
-             next_vertex_idx = linedefs[c_linedef_idx].end_vertex_idx;
+        // can i assume just one hole and CUT INTO the original?
+        if ( nlinedefs_added < sectors[sector_idx].nlinedefs - 2 ) {
+          //    printf( " assembling hole loop in sector\n" );
 
-             int right_sidedef_idx = linedefs[c_linedef_idx].right_sidedef;
-             if ( right_sidedef_idx < 0 ||
-                  sidedefs[right_sidedef_idx].sector != sector_idx ) {
-               first_vertex_idx = linedefs[c_linedef_idx].end_vertex_idx;
-               next_vertex_idx = linedefs[c_linedef_idx].start_vertex_idx;
-             }
+          // find first unclaimed point to start forming hole
+          for ( int i = 0; i < sectors[sector_idx].nlinedefs; i++ ) {
+            if ( !slinedef_claimed[i] ) {
+              int c_linedef_idx = sectors[sector_idx].linedefs[i];
+              // note: should have reversed loop direction but sector on same side
+              // e.h. right
+              int first_vertex_idx = linedefs[c_linedef_idx].start_vertex_idx;
+              next_vertex_idx = linedefs[c_linedef_idx].end_vertex_idx;
 
-             last_vertex_idx = first_vertex_idx;
-             vert_adjacency[num_adjacency++] = first_vertex_idx;
-             nlinedefs_added++;
-             slinedef_claimed[i] = true;
-             break;
-           }
-         }*/
+              int right_sidedef_idx = linedefs[c_linedef_idx].right_sidedef;
+              if ( right_sidedef_idx < 0 ||
+                   sidedefs[right_sidedef_idx].sector != sector_idx ) {
+                first_vertex_idx = linedefs[c_linedef_idx].end_vertex_idx;
+                next_vertex_idx = linedefs[c_linedef_idx].start_vertex_idx;
+              }
+
+              previous_ld = i;
+
+              last_vertex_idx = first_vertex_idx;
+              hole_adjacency[nhole_adjacency++] = first_vertex_idx;
+              nlinedefs_added++;
+              slinedef_claimed[i] = true;
+              // printf("added first hole vert - startvi %i endvi %i\n",
+              // first_vertex_idx, next_vertex_idx);
+              break;
+            }
+          }
+
+          while ( nlinedefs_added < sectors[sector_idx].nlinedefs ) {
+            for ( int i = 0; i < sectors[sector_idx].nlinedefs; i++ ) {
+              if ( slinedef_claimed[i] ) {
+                continue;
+              }
+              int linedef_idx = sectors[sector_idx].linedefs[i];
+              int start_v_i = linedefs[linedef_idx].start_vertex_idx;
+              int end_v_i = linedefs[linedef_idx].end_vertex_idx;
+              if ( i == previous_ld ) {
+                continue;
+              }
+              // printf("looking for %i, at %i,%i\n", next_vertex_idx, start_v_i,
+              // end_v_i );
+              if ( start_v_i == next_vertex_idx ) {
+                hole_adjacency[nhole_adjacency++] = start_v_i;
+                next_vertex_idx = end_v_i;
+                previous_ld = i;
+                nlinedefs_added++;
+                slinedef_claimed[i] = true;
+                // printf("added hole pt\n");
+                break;
+              } else if ( end_v_i == next_vertex_idx ) {
+                hole_adjacency[nhole_adjacency++] = end_v_i;
+                next_vertex_idx = start_v_i;
+                previous_ld = i;
+                nlinedefs_added++;
+                slinedef_claimed[i] = true;
+                //  printf("added hole pt\n");
+                break;
+              }
+            } // endfor
+
+            // append hole and joining line
+            if ( last_vertex_idx == next_vertex_idx ) {
+              printf("=================before:==================\n");
+              for ( int i = 0; i < num_adjacency; i++ ) {
+                printf("%i,", vert_adjacency[i]);
+              }
+              printf("\n");
+
+              // 0. reverse hole list
+           /*   for ( int i = 0; i < nhole_adjacency / 2; i++ ) {
+                int tmp = hole_adjacency[i];
+                hole_adjacency[i] = hole_adjacency[nhole_adjacency - 1 - i];
+                hole_adjacency[nhole_adjacency - 1 - i] = tmp;
+              }*/
+
+              for ( int i = 0; i < nhole_adjacency; i++ ) {
+                printf("%i,", hole_adjacency[i]);
+              }
+              printf("\n");
+
+              
+
+              // 1. find hole point with maximum x value
+              int max_pt_idx = 0;
+              int max_x_val = vertices[hole_adjacency[0]].x;
+              for ( int i = 1; i < nhole_adjacency; i++ ) {
+                if ( vertices[hole_adjacency[i]].x > max_x_val ) {
+                  max_x_val = vertices[hole_adjacency[i]].x;
+                  max_pt_idx = i;
+                }
+              }
+              printf( "--max hole x point is %i with %i\n", max_pt_idx, max_x_val );
+
+              // 2. CHEATING (should cast a ray and blah blah)
+              int closest_pt_idx = 0;
+              int closest_pt_dist = vertices[vert_adjacency[0]].x - max_x_val;
+              printf( "candidate idx %i x %i dist %i\n", 0, vertices[vert_adjacency[0]].x, closest_pt_dist );
+    
+              for ( int i = 1; i < num_adjacency; i++ ) {
+                int x = vertices[vert_adjacency[i]].x;
+                int dist = x - max_x_val;
+                printf( "candidate idx %i x %i dist %i\n", i, x, dist );
+                if ( closest_pt_dist < 0 || (dist > 0 && dist < closest_pt_dist) ) {
+                  closest_pt_dist = dist;
+                  closest_pt_idx = i;
+                }
+              }
+              printf( "--closest_pt_idx %i with d %i x %i\n", closest_pt_idx,
+                      closest_pt_dist, vertices[vert_adjacency[0]].x );
+
+              // 3. shuffle then snake in
+              // BACKUP BECAUSE FUCK ALL THESE FUCKING ARRAY OPERATIONS IN C
+              int tmp_array[4096];
+              int backup_length = 0;
+              for (int i = closest_pt_idx; i < num_adjacency; i++) {
+                tmp_array[backup_length] = vert_adjacency[i];
+                backup_length++;
+              }
+
+              // insert reversed hole at point AFTER closest_pt_idx
+              for (int i = 0; i < nhole_adjacency; i++) {
+                int at = closest_pt_idx + 1;
+                int hole_idx = loopmod(max_pt_idx + i, nhole_adjacency);
+                vert_adjacency[at + i] = hole_adjacency[hole_idx];
+              }
+              num_adjacency += nhole_adjacency;
+              
+              // add start of hole segment again
+              int at = closest_pt_idx + nhole_adjacency + 1;
+              vert_adjacency[at] = hole_adjacency[max_pt_idx];
+              num_adjacency++;
+              // add rest or array (starting with duplicating earlier end)
+              for (int i = 0; i < backup_length; i++) {
+                vert_adjacency[closest_pt_idx + nhole_adjacency + 2 + i] = tmp_array[i];
+              }
+              num_adjacency = closest_pt_idx + nhole_adjacency + 2 + backup_length;
+
+
+              printf("after:\n");
+              for ( int i = 0; i < num_adjacency; i++ ) {
+                printf("%i,", vert_adjacency[i]);
+              }
+              printf("\n");
+
+              /*
+                            int prior_end = vert_adjacency[num_adjacency-1];
+                            for (int cati = 0; cati < nhole_adjacency; cati++ ){
+                              vert_adjacency[num_adjacency++] =
+                 hole_adjacency[nhole_adjacency - 1 - cati];
+                            }
+                            vert_adjacency[num_adjacency++] =
+                 hole_adjacency[nhole_adjacency - 1]; // diagonal cut
+                            vert_adjacency[num_adjacency++] = prior_end; // diagonal
+                 cut
+                            nhole_adjacency = 0; // reset hole buffer*/
+              break;
+            }
+            if ( nlinedefs_added == sectors[sector_idx].nlinedefs ) {
+              printf( "WARNING: only %i pts added to hole - probably a mistake. "
+                      "deleting\n",
+                      nhole_adjacency );
+              nhole_adjacency = 0;
+            }
+          } // endwhile adding hole pts
+
+          // TODO find additional holes
+          if ( nlinedefs_added < sectors[sector_idx].nlinedefs ) {
+            int leftovers = sectors[sector_idx].nlinedefs - nlinedefs_added;
+            printf( "WARNING: additional hole loop(s) (%i points) unclaimed in "
+                    "sector %i\n",
+                    leftovers, sector_idx );
+          }
+        } // end hole finder
 
         break;
       }
@@ -671,23 +824,17 @@ void earclip( int sector_idx ) {
     flat_comps = 0;
     int remaining_verts = num_adjacency;
 
-    // TODO use this
-    vec2 *original_vlist = (vec2 *)malloc( sizeof( vec2 ) * remaining_verts );
-    int original_count = num_adjacency;
-
     vec2 *vlist = (vec2 *)malloc( sizeof( vec2 ) * remaining_verts );
     for ( int i = 0; i < remaining_verts; i++ ) {
       int vertex_idx = vert_adjacency[i];
       vlist[i].x = vertices[vertex_idx].x;
       vlist[i].y = vertices[vertex_idx].y;
-
-      original_vlist[i] = vlist[i];
     }
-
+    // >2 rather than >3 makes this also add the last triangle
     while ( remaining_verts > 2 ) {
-      int ear_idx = find_ear_in_simple_polygon( vlist, remaining_verts,
-                                                original_vlist, original_count );
+      int ear_idx = find_ear_in_simple_polygon( vlist, remaining_verts );
       if ( ear_idx == -1 ) {
+        printf( "WARNING: no ear found - sector %i\n", sector_idx );
         break;
       }
       int prev_idx = loopmod( ear_idx - 1, remaining_verts );
@@ -755,7 +902,6 @@ void earclip( int sector_idx ) {
       remaining_verts = 0;*/
     }
     free( vlist );
-    free( original_vlist );
   }
   sectors[sector_idx].nverts = flat_points;
 
