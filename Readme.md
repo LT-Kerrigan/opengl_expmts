@@ -52,6 +52,7 @@ projects, and volatile software. Mostly OpenGL but some other graphics-related s
 | xxx     | two-point perspective | matrices for one/two/three point perspective drawing style | proposed |
 | xxx     | 3ds parse           | a 3ds binary format loader           | proposed |
 | xxx     | glTF                | use latest official tools for glTF file load | proposed |
+| xxx     | widgets             | simple slider and text field widgets for demos | proposed |
 
 ## Notes
 
