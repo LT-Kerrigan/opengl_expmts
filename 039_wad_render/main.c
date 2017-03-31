@@ -1,10 +1,12 @@
 // WAD Rend - Copyright 2017 Anton Gerdelan <antonofnote@gmail.com>
 // C99
 /* TODO LIST
-1. add the hole-presevering "visibility" extension to the ear-clipping algorithm
-2. add ceilings back in
-3. create a separate shader for flats, retrieve+load the texture for the current
-sector and texture the floor / ceiling
+DONE 1. add the hole-presevering "visibility" extension to the ear-clipping
+algorithm
+DONE 2. add ceilings back in
+DONE 3. create a separate shader for flats, retrieve+load the texture for the
+current
+        sector and texture the floor / ceiling
 4. extract list of sprite locations - sprite textures will require quads per sprite
 type to be sized (or the sprite texture offset i guess)
 5. texture the walls using similar method to flats - will either need an atlas or
@@ -17,6 +19,7 @@ into vertex data
 
 #include "gl_utils.h"
 #include "linmath.h"
+#include "sky.h"
 #include "wad.h"
 #include <assert.h>
 #include <stdio.h>
@@ -32,7 +35,7 @@ int nwall_verts;
 GLuint program, flats_program;
 int view_mat_location = -1, proj_mat_location = -1;
 int flats_program_view_mat_location = -1, flats_program_proj_mat_location = -1;
-mat4 proj_mat, view_mat;
+mat4 proj_mat, view_mat, sky_view_mat;
 
 int main( int argc, char **argv ) {
   { // startup
@@ -53,6 +56,10 @@ int main( int argc, char **argv ) {
                                                  FLATS_FRAGMENT_SHADER_FILE );
     flats_program_view_mat_location = glGetUniformLocation( flats_program, "view" );
     flats_program_proj_mat_location = glGetUniformLocation( flats_program, "proj" );
+  }
+  { // TODO create sky
+    // TODO fetch matching sky based on episode/map number
+    init_sky( argv[2]  );
   }
   { // extract and construct wall geometry
     size_t max_geom_sz = 1024 * 1024;
@@ -85,6 +92,7 @@ int main( int argc, char **argv ) {
     quat_from_axis_deg( -cam_heading, ( vec3 ){ 0.0f, 1.0f, 0.0f } );
   mat4 R = quat_to_mat4( quaternion );
   view_mat = mult_mat4_mat4( R, T );
+  sky_view_mat = R;
   // keep track of some useful vectors that can be used for keyboard movement
   vec4 fwd = ( vec4 ){ 0.0f, 0.0f, -1.0f, 0.0f };
   vec4 rgt = ( vec4 ){ 1.0f, 0.0f, 0.0f, 0.0f };
@@ -278,7 +286,9 @@ int main( int argc, char **argv ) {
           // print_vec3( cam_pos );
           mat4 T = translate_mat4( cam_pos );
 
-          view_mat = mult_mat4_mat4( inverse_mat4( R ), inverse_mat4( T ) );
+          mat4 inverse_R = inverse_mat4( R );
+          view_mat = mult_mat4_mat4( inverse_R, inverse_mat4( T ) );
+          sky_view_mat = inverse_R;
         }
         float aspect = (float)g_gl_width / (float)g_gl_height;
         proj_mat = perspective( 67, aspect, 10.0, 10000.0 );
@@ -286,6 +296,8 @@ int main( int argc, char **argv ) {
 
       glViewport( 0, 0, g_gl_width, g_gl_height );
       glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+      draw_sky( sky_view_mat, proj_mat );
 
       glUseProgram( program );
       glUniformMatrix4fv( view_mat_location, 1, GL_FALSE, view_mat.m );

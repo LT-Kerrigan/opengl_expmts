@@ -1,7 +1,7 @@
 // WAD Rend - Copyright 2017 Anton Gerdelan <antonofnote@gmail.com>
 // C99
 #include "wad.h"
-#include "apg_data_structs.h"
+//#include "apg_data_structs.h"
 #include "gl_utils.h"
 #include "linmath.h"
 #include <alloca.h> // malloc.h for win32?
@@ -11,8 +11,6 @@
 #include <string.h>
 
 char wad_filename[1024];
-
-typedef unsigned char byte_t;
 
 typedef struct dir_entry_t {
   int addr;
@@ -79,7 +77,7 @@ int sector_count() { return nsectors; }
 // returns true if true so far and one string shorter e.g. "ANT" "ANTON"
 bool apg_strmatchy( const char *a, const char *b ) {
   int len = MAX( strlen( a ), strlen( b ) );
-  for ( int i = 0;  i <len; i++ ) {
+  for ( int i = 0; i < len; i++ ) {
     if ( a[i] != b[i] ) {
       return false;
     }
@@ -144,6 +142,42 @@ every linedef is
 tag e.g. sector number to affect except doors - always sector on other side of line)
 */
 
+bool get_wad_picture_dims( const char *name, int *_width, int *_height ) {
+  for ( int i = 0; i < ndir_entries; i++ ) {
+    if ( apg_strmatchy( dir_entries[i].name, name ) ) {
+
+      FILE *f = fopen( wad_filename, "rb" );
+      if ( !f ) {
+        fprintf( stderr, "ERROR: could not open file `%s`\n", wad_filename );
+        return false;
+      }
+
+      // 8-byte HEADER of 4 short ints
+      short int width = 0, height = 0, left_offset = 0, top_offset = 0;
+      {
+        int ret = fseek( f, (long)dir_entries[i].addr, SEEK_SET );
+        assert( ret != -1 );
+        size_t sz = sizeof( short int );
+        size_t ritems = fread( &width, sz, 1, f );
+        assert( ritems == 1 );
+        ritems = fread( &height, sz, 1, f );
+        assert( ritems == 1 );
+        ritems = fread( &left_offset, sz, 1, f );
+        assert( ritems == 1 );
+        ritems = fread( &top_offset, sz, 1, f );
+        assert( ritems == 1 );
+      }
+
+      fclose( f );
+
+      *_width = (int)width;
+      *_height = (int)height;
+      return true;
+    }
+  }
+  return false;
+}
+
 int get_wad_dir_index( const char *name ) {
   for ( int i = 0; i < ndir_entries; i++ ) {
     if ( apg_strmatchy( dir_entries[i].name, name ) ) {
@@ -153,11 +187,109 @@ int get_wad_dir_index( const char *name ) {
   return -1;
 }
 
+// allocate 4 bytes * width * height beforehand
+bool load_picture_data( const char *lump_name, byte_t *pixel_buff, int width,
+                        int height ) {
+
+  // look up palette RGB for each bytes and draw with stb_image
+  const size_t img_sz = 131072; // 256*256=65536
+  byte_t *index_buff = alloca( img_sz );
+  assert( index_buff );
+  assert( pixel_buff );
+
+  int dir_idx = get_wad_dir_index( lump_name );
+  if ( dir_idx < 0 ) {
+    fprintf( stderr, "ERROR: could find lump_name for image `%s` in WAD dir\n",
+             lump_name );
+    return false;
+  }
+  int lump_location = dir_entries[dir_idx].addr;
+
+  { // read from WAD
+    FILE *f = fopen( wad_filename, "rb" );
+    if ( !f ) {
+      fprintf( stderr, "ERROR: could not open file `%s`\n", wad_filename );
+      return false;
+    }
+
+    size_t header_sz = 8;
+    int ret = fseek( f, lump_location + header_sz, SEEK_SET );
+
+    // ptrs to data for each column
+    // i guess width*sizeof(int) block here
+    // these are offsets of each column from first byte of picture lump
+    int *column_offsets = (int *)calloc( width, 4 );
+    assert( column_offsets );
+    size_t ritems = fread( column_offsets, 4, width, f );
+    assert( ritems == width );
+
+    // columns of bytes
+    
+    for ( int col_idx = 0; col_idx < width; col_idx++ ) {
+      int ptr = column_offsets[col_idx];
+      int ret = fseek( f, (long)( ptr + lump_location ), SEEK_SET );
+      assert( ret != -1 );
+
+      // row start being non-zero allows columns to be drawn skipping
+      // transparent bits at the top
+      while ( true ) {
+        byte_t row_start = 0;
+        size_t ritems = fread( &row_start, 1, 1, f );
+        if ( ritems != 1 ) {
+          printf( "ERROR: not valid picture %s\n", lump_name );
+          assert( 0 );
+        }
+        if ( row_start == 255 ) {
+          break;
+        }
+
+        byte_t npixels_down = 0;
+        ritems = fread( &npixels_down, 1, 1, f );
+        assert( ritems == 1 );
+
+        byte_t dead_byte = 0;
+        ritems = fread( &dead_byte, 1, 1, f );
+        assert( ritems == 1 );
+
+        for ( int post_idx = 0; post_idx < npixels_down; post_idx++ ) {
+          byte_t colour_idx = 0;
+          ritems = fread( &colour_idx, 1, 1, f );
+          assert( ritems == 1 );
+          rgb_t rgb = rgb_from_palette( colour_idx, PAL_DEFAULT );
+          int x = col_idx;
+          int y = (int)row_start + post_idx;
+          int pb_idx = width * y + x;
+
+          if ( npixels_down > height ) {
+            //printf( "npixels_down %i height %i\n", npixels_down, height );
+            assert( 0 );
+          }
+
+          pixel_buff[pb_idx * 4] = rgb.r;
+          pixel_buff[pb_idx * 4 + 1] = rgb.g;
+          pixel_buff[pb_idx * 4 + 2] = rgb.b;
+          pixel_buff[pb_idx * 4 + 3] = 255;
+        } // endfor down posts
+        ritems = fread( &dead_byte, 1, 1, f );
+        assert( ritems == 1 );
+      } // endwhile rowstart
+    }   // endfor across columns
+    fclose( f );
+
+    free( column_offsets );
+  }
+  printf( "loaded img data `%s`\n", lump_name );
+  return true;
+}
+
 // TODO if already loaded return same index
 GLuint load_wad_texture( const char *texture_name ) {
   GLuint tex = 0;
+  if ( apg_strmatchy( texture_name, "F_SKY1" ) ) {
+    return 0;
+  }
   // HACK workaround
-  if (apg_strmatchy(texture_name, "FLTLAVA1")) {
+  if ( apg_strmatchy( texture_name, "FLTLAVA1" ) ) {
     return tex;
   }
 
@@ -288,8 +420,17 @@ bool open_wad( const char *filename, const char *map_name ) {
         fread( &sectors[sidx].tag, 2, 1, f );
 
         // load the texture -- TODO dont reload the same textures
+        // NOTE: F_SKY1 (F_SKY--1 in strife) is just 'use the sky texture for this
+        // episode/level'
+        // it could be SKY1 SKY2 SKY3 or SKY4 depending
+        // these are a 128 units high _wall_ texture. top is pegged to top of
+        // view window, zero column at due east. 256px wide and this tiles 4x
+        // around e.g. due east->north=first 256px
+
         sectors[sidx].gl_floor_texture =
           load_wad_texture( sectors[sidx].floor_texture_name );
+        sectors[sidx].gl_ceil_texture =
+          load_wad_texture( sectors[sidx].ceil_texture_name );
       }
     }
     { // LINEDEFS
@@ -666,7 +807,7 @@ bool PointInTriangle( vec2 pt, vec2 v1, vec2 v2, vec2 v3 ) {
   return ( ( b1 == b2 ) && ( b2 == b3 ) );
 }
 
-float flat_buffer[4096];
+float floor_buffer[4096], ceil_buffer[4096];
 int flat_points;
 int flat_comps;
 
@@ -681,18 +822,18 @@ void earclip( int sector_idx ) {
       int first_linedef_idx = sectors[sector_idx].linedefs[i];
       int first_vertex_idx = linedefs[first_linedef_idx].start_vertex_idx;
       int second_vertex_idx = linedefs[first_linedef_idx].end_vertex_idx;
-      flat_buffer[flat_comps++] = (float)vertices[first_vertex_idx].x;
-      flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
-      flat_buffer[flat_comps++] = -(float)vertices[first_vertex_idx].y;
-      flat_buffer[flat_comps++] = (float)0;
-      flat_buffer[flat_comps++] = (float)1;
-      flat_buffer[flat_comps++] = (float)0;
-      flat_buffer[flat_comps++] = (float)vertices[second_vertex_idx].x;
-      flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
-      flat_buffer[flat_comps++] = -(float)vertices[second_vertex_idx].y;
-      flat_buffer[flat_comps++] = (float)0;
-      flat_buffer[flat_comps++] = (float)1;
-      flat_buffer[flat_comps++] = (float)0;
+      floor_buffer[flat_comps++] = (float)vertices[first_vertex_idx].x;
+      floor_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
+      floor_buffer[flat_comps++] = -(float)vertices[first_vertex_idx].y;
+      floor_buffer[flat_comps++] = (float)0;
+      floor_buffer[flat_comps++] = (float)1;
+      floor_buffer[flat_comps++] = (float)0;
+      floor_buffer[flat_comps++] = (float)vertices[second_vertex_idx].x;
+      floor_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
+      floor_buffer[flat_comps++] = -(float)vertices[second_vertex_idx].y;
+      floor_buffer[flat_comps++] = (float)0;
+      floor_buffer[flat_comps++] = (float)1;
+      floor_buffer[flat_comps++] = (float)0;
       flat_points += 2;
     }
     sectors[sector_idx].nverts = sectors[sector_idx].nlinedefs * 2;
@@ -732,10 +873,9 @@ void earclip( int sector_idx ) {
     while ( nlinedefs_added < sectors[sector_idx].nlinedefs ) {
       if ( last_vertex_idx == next_vertex_idx ) {
 
+        // hole finder -- E1M1 problems are not due to this chunk of code
         // can i assume just one hole and CUT INTO the original?
         if ( nlinedefs_added < sectors[sector_idx].nlinedefs - 2 ) {
-          //    printf( " assembling hole loop in sector\n" );
-
           // find first unclaimed point to start forming hole
           for ( int i = 0; i < sectors[sector_idx].nlinedefs; i++ ) {
             if ( !slinedef_claimed[i] ) {
@@ -758,13 +898,12 @@ void earclip( int sector_idx ) {
               hole_adjacency[nhole_adjacency++] = first_vertex_idx;
               nlinedefs_added++;
               slinedef_claimed[i] = true;
-              // printf("added first hole vert - startvi %i endvi %i\n",
-              // first_vertex_idx, next_vertex_idx);
               break;
             }
           }
 
           while ( nlinedefs_added < sectors[sector_idx].nlinedefs ) {
+            // look for hole points to add
             for ( int i = 0; i < sectors[sector_idx].nlinedefs; i++ ) {
               if ( slinedef_claimed[i] ) {
                 continue;
@@ -775,15 +914,12 @@ void earclip( int sector_idx ) {
               if ( i == previous_ld ) {
                 continue;
               }
-              // printf("looking for %i, at %i,%i\n", next_vertex_idx, start_v_i,
-              // end_v_i );
               if ( start_v_i == next_vertex_idx ) {
                 hole_adjacency[nhole_adjacency++] = start_v_i;
                 next_vertex_idx = end_v_i;
                 previous_ld = i;
                 nlinedefs_added++;
                 slinedef_claimed[i] = true;
-                // printf("added hole pt\n");
                 break;
               } else if ( end_v_i == next_vertex_idx ) {
                 hole_adjacency[nhole_adjacency++] = end_v_i;
@@ -791,7 +927,6 @@ void earclip( int sector_idx ) {
                 previous_ld = i;
                 nlinedefs_added++;
                 slinedef_claimed[i] = true;
-                //  printf("added hole pt\n");
                 break;
               }
             } // endfor
@@ -804,13 +939,6 @@ void earclip( int sector_idx ) {
               }
               printf( "\n" );
 
-              // 0. reverse hole list
-              /*   for ( int i = 0; i < nhole_adjacency / 2; i++ ) {
-                   int tmp = hole_adjacency[i];
-                   hole_adjacency[i] = hole_adjacency[nhole_adjacency - 1 - i];
-                   hole_adjacency[nhole_adjacency - 1 - i] = tmp;
-                 }*/
-
               for ( int i = 0; i < nhole_adjacency; i++ ) {
                 printf( "%i,", hole_adjacency[i] );
               }
@@ -819,9 +947,11 @@ void earclip( int sector_idx ) {
               // 1. find hole point with maximum x value
               int max_pt_idx = 0;
               int max_x_val = vertices[hole_adjacency[0]].x;
+              int max_y_val = vertices[hole_adjacency[0]].y;
               for ( int i = 1; i < nhole_adjacency; i++ ) {
                 if ( vertices[hole_adjacency[i]].x > max_x_val ) {
                   max_x_val = vertices[hole_adjacency[i]].x;
+                  max_y_val = vertices[hole_adjacency[i]].y;
                   max_pt_idx = i;
                 }
               }
@@ -829,25 +959,24 @@ void earclip( int sector_idx ) {
 
               // 2. CHEATING (should cast a ray and blah blah)
               int closest_pt_idx = 0;
-              int closest_pt_dist = vertices[vert_adjacency[0]].x - max_x_val;
-              printf( "candidate idx %i x %i dist %i\n", 0,
-                      vertices[vert_adjacency[0]].x, closest_pt_dist );
+              int xd = vertices[vert_adjacency[0]].x - max_x_val;
+              int yd = vertices[vert_adjacency[0]].y - max_y_val;
+              int closest_pt_dist = ( xd * xd + yd * yd );
 
               for ( int i = 1; i < num_adjacency; i++ ) {
-                int x = vertices[vert_adjacency[i]].x;
-                int dist = x - max_x_val;
-                printf( "candidate idx %i x %i dist %i\n", i, x, dist );
+                int xd = vertices[vert_adjacency[i]].x - max_x_val;
+                int yd = vertices[vert_adjacency[i]].y - max_y_val;
+                int dist = ( xd * xd + yd * yd );
+                // printf( "candidate idx %i x %i dist %i\n", i, x, dist );
                 if ( closest_pt_dist < 0 ||
                      ( dist > 0 && dist < closest_pt_dist ) ) {
                   closest_pt_dist = dist;
                   closest_pt_idx = i;
                 }
               }
-              printf( "--closest_pt_idx %i with d %i x %i\n", closest_pt_idx,
-                      closest_pt_dist, vertices[vert_adjacency[0]].x );
 
               // 3. shuffle then snake in
-              // BACKUP BECAUSE FUCK ALL THESE FUCKING ARRAY OPERATIONS IN C
+              // BACKUP
               int tmp_array[4096];
               int backup_length = 0;
               for ( int i = closest_pt_idx; i < num_adjacency; i++ ) {
@@ -880,17 +1009,6 @@ void earclip( int sector_idx ) {
               }
               printf( "\n" );
 
-              /*
-                            int prior_end = vert_adjacency[num_adjacency-1];
-                            for (int cati = 0; cati < nhole_adjacency; cati++ ){
-                              vert_adjacency[num_adjacency++] =
-                 hole_adjacency[nhole_adjacency - 1 - cati];
-                            }
-                            vert_adjacency[num_adjacency++] =
-                 hole_adjacency[nhole_adjacency - 1]; // diagonal cut
-                            vert_adjacency[num_adjacency++] = prior_end; // diagonal
-                 cut
-                            nhole_adjacency = 0; // reset hole buffer*/
               break;
             }
             if ( nlinedefs_added == sectors[sector_idx].nlinedefs ) {
@@ -913,7 +1031,9 @@ void earclip( int sector_idx ) {
         break;
       }
       countdown--;
-      assert( countdown );
+      if ( countdown == 0 ) {
+        break;
+      }
 
       for ( int i = 0; i < sectors[sector_idx].nlinedefs; i++ ) {
         if ( slinedef_claimed[i] ) {
@@ -944,28 +1064,7 @@ void earclip( int sector_idx ) {
 
       } // endfor
     }   // endwhile
-    /*  { // now add them in order
-        for ( int i = 0; i < num_adjacency; i++ ) {
-          int first_vertex_idx = vert_adjacency[i];
-          int b = ( i + 1 ) % num_adjacency;
-          int second_vertex_idx = vert_adjacency[b];
-          flat_buffer[flat_comps++] = (float)vertices[first_vertex_idx].x;
-          flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
-          flat_buffer[flat_comps++] = -(float)vertices[first_vertex_idx].y;
-          flat_buffer[flat_comps++] = (float)0;
-          flat_buffer[flat_comps++] = (float)1;
-          flat_buffer[flat_comps++] = (float)0;
-          flat_buffer[flat_comps++] = (float)vertices[second_vertex_idx].x;
-          flat_buffer[flat_comps++] = (float)sectors[sector_idx].floor_height;
-          flat_buffer[flat_comps++] = -(float)vertices[second_vertex_idx].y;
-          flat_buffer[flat_comps++] = (float)0;
-          flat_buffer[flat_comps++] = (float)1;
-          flat_buffer[flat_comps++] = (float)0;
-          flat_points += 2;
-        }
-        sectors[sector_idx].nverts = sectors[sector_idx].nlinedefs * 2;
-      }*/
-  }
+  }     // endblock phase 2
 #endif
 #ifdef PHASE_C // find ears
   {
@@ -973,7 +1072,7 @@ void earclip( int sector_idx ) {
     flat_comps = 0;
     int remaining_verts = num_adjacency;
 
-    vec2 *vlist = (vec2 *)malloc( sizeof( vec2 ) * remaining_verts );
+    vec2 *vlist = (vec2 *)malloc( sizeof( vec2 ) * num_adjacency );
     for ( int i = 0; i < remaining_verts; i++ ) {
       int vertex_idx = vert_adjacency[i];
       vlist[i].x = vertices[vertex_idx].x;
@@ -994,26 +1093,53 @@ void earclip( int sector_idx ) {
         vec2 next_vertex = vlist[next_idx];
         vec2 curr_vertex = vlist[ear_idx];
         // note i switch winding order to CCW here
-        flat_buffer[flat_comps++] = next_vertex.x;
-        flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
-        flat_buffer[flat_comps++] = -next_vertex.y;
-        flat_buffer[flat_comps++] = (float)0;
-        flat_buffer[flat_comps++] = (float)1;
-        flat_buffer[flat_comps++] = (float)0;
+        floor_buffer[flat_comps++] = next_vertex.x;
+        floor_buffer[flat_comps++] = sectors[sector_idx].floor_height;
+        floor_buffer[flat_comps++] = -next_vertex.y;
+        floor_buffer[flat_comps++] = (float)0;
+        floor_buffer[flat_comps++] = (float)1;
+        floor_buffer[flat_comps++] = (float)0;
         flat_points++;
-        flat_buffer[flat_comps++] = curr_vertex.x;
-        flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
-        flat_buffer[flat_comps++] = -curr_vertex.y;
-        flat_buffer[flat_comps++] = (float)0;
-        flat_buffer[flat_comps++] = (float)1;
-        flat_buffer[flat_comps++] = (float)0;
+        floor_buffer[flat_comps++] = curr_vertex.x;
+        floor_buffer[flat_comps++] = sectors[sector_idx].floor_height;
+        floor_buffer[flat_comps++] = -curr_vertex.y;
+        floor_buffer[flat_comps++] = (float)0;
+        floor_buffer[flat_comps++] = (float)1;
+        floor_buffer[flat_comps++] = (float)0;
         flat_points++;
-        flat_buffer[flat_comps++] = prev_vertex.x;
-        flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
-        flat_buffer[flat_comps++] = -prev_vertex.y;
-        flat_buffer[flat_comps++] = (float)0;
-        flat_buffer[flat_comps++] = (float)1;
-        flat_buffer[flat_comps++] = (float)0;
+        floor_buffer[flat_comps++] = prev_vertex.x;
+        floor_buffer[flat_comps++] = sectors[sector_idx].floor_height;
+        floor_buffer[flat_comps++] = -prev_vertex.y;
+        floor_buffer[flat_comps++] = (float)0;
+        floor_buffer[flat_comps++] = (float)1;
+        floor_buffer[flat_comps++] = (float)0;
+        flat_points++;
+      }
+      { // copy ear into buffer for triangles
+        vec2 prev_vertex = vlist[prev_idx];
+        vec2 next_vertex = vlist[next_idx];
+        vec2 curr_vertex = vlist[ear_idx];
+        // note i switch winding order to CCW here
+        ceil_buffer[flat_comps++] = prev_vertex.x;
+        ceil_buffer[flat_comps++] = sectors[sector_idx].ceil_height;
+        ceil_buffer[flat_comps++] = -prev_vertex.y;
+        ceil_buffer[flat_comps++] = (float)0;
+        ceil_buffer[flat_comps++] = (float)1;
+        ceil_buffer[flat_comps++] = (float)0;
+        flat_points++;
+        ceil_buffer[flat_comps++] = curr_vertex.x;
+        ceil_buffer[flat_comps++] = sectors[sector_idx].ceil_height;
+        ceil_buffer[flat_comps++] = -curr_vertex.y;
+        ceil_buffer[flat_comps++] = (float)0;
+        ceil_buffer[flat_comps++] = (float)1;
+        ceil_buffer[flat_comps++] = (float)0;
+        flat_points++;
+        ceil_buffer[flat_comps++] = next_vertex.x;
+        ceil_buffer[flat_comps++] = sectors[sector_idx].ceil_height;
+        ceil_buffer[flat_comps++] = -next_vertex.y;
+        ceil_buffer[flat_comps++] = (float)0;
+        ceil_buffer[flat_comps++] = (float)1;
+        ceil_buffer[flat_comps++] = (float)0;
         flat_points++;
       }
       { // shuffle array down
@@ -1022,33 +1148,6 @@ void earclip( int sector_idx ) {
         }
         remaining_verts--;
       }
-    }
-    { // last triangle
-      /*vec2 prev_vertex = vlist[0];
-      vec2 next_vertex = vlist[1];
-      vec2 curr_vertex = vlist[2];
-      flat_buffer[flat_comps++] = prev_vertex.x;
-      flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
-      flat_buffer[flat_comps++] = -prev_vertex.y;
-      flat_buffer[flat_comps++] = (float)0;
-      flat_buffer[flat_comps++] = (float)1;
-      flat_buffer[flat_comps++] = (float)0;
-      flat_points++;
-      flat_buffer[flat_comps++] = curr_vertex.x;
-      flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
-      flat_buffer[flat_comps++] = -curr_vertex.y;
-      flat_buffer[flat_comps++] = (float)0;
-      flat_buffer[flat_comps++] = (float)1;
-      flat_buffer[flat_comps++] = (float)0;
-      flat_points++;
-      flat_buffer[flat_comps++] = next_vertex.x;
-      flat_buffer[flat_comps++] = sectors[sector_idx].floor_height;
-      flat_buffer[flat_comps++] = -next_vertex.y;
-      flat_buffer[flat_comps++] = (float)0;
-      flat_buffer[flat_comps++] = (float)1;
-      flat_buffer[flat_comps++] = (float)0;
-      flat_points++;
-      remaining_verts = 0;*/
     }
     free( vlist );
   }
@@ -1060,9 +1159,21 @@ void earclip( int sector_idx ) {
     glBindVertexArray( sectors[sector_idx].floor_vao );
     glGenBuffers( 1, &sectors[sector_idx].floor_vbo );
     glBindBuffer( GL_ARRAY_BUFFER, sectors[sector_idx].floor_vbo );
-    glBufferData( GL_ARRAY_BUFFER, 6 * flat_points * sizeof( GLfloat ), flat_buffer,
-                  GL_STATIC_DRAW );
+    glBufferData( GL_ARRAY_BUFFER, 6 * flat_points * sizeof( GLfloat ),
+                  floor_buffer, GL_STATIC_DRAW );
     GLintptr vertex_normal_offset = 3 * sizeof( float );
+    glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ), NULL );
+    glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ),
+                           (GLvoid *)vertex_normal_offset );
+    glEnableVertexAttribArray( 0 );
+    glEnableVertexAttribArray( 1 );
+
+    glGenVertexArrays( 1, &sectors[sector_idx].ceil_vao );
+    glBindVertexArray( sectors[sector_idx].ceil_vao );
+    glGenBuffers( 1, &sectors[sector_idx].ceil_vbo );
+    glBindBuffer( GL_ARRAY_BUFFER, sectors[sector_idx].ceil_vbo );
+    glBufferData( GL_ARRAY_BUFFER, 6 * flat_points * sizeof( GLfloat ), ceil_buffer,
+                  GL_STATIC_DRAW );
     glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ), NULL );
     glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ),
                            (GLvoid *)vertex_normal_offset );
@@ -1079,6 +1190,8 @@ void fill_sectors() {
 }
 
 void draw_sectors( int verts, int sectidx ) {
+  // printf( "sector_idx=%i (%i verts)\n", sectidx, sectors[sectidx].nverts );
+
   // glDisable( GL_CULL_FACE );
 
   for ( int sectidx = 0; sectidx < nsectors; sectidx++ ) {
@@ -1090,11 +1203,20 @@ void draw_sectors( int verts, int sectidx ) {
     // temp
     usev = sectors[sectidx].nverts;
 
-    glBindVertexArray( sectors[sectidx].floor_vao );
+    if ( sectors[sectidx].gl_floor_texture ) {
+      glBindVertexArray( sectors[sectidx].floor_vao );
 
-    glActiveTexture( GL_TEXTURE0 );
-    glBindTexture( GL_TEXTURE_2D, sectors[sectidx].gl_floor_texture );
+      glActiveTexture( GL_TEXTURE0 );
+      glBindTexture( GL_TEXTURE_2D, sectors[sectidx].gl_floor_texture );
 
+      glDrawArrays( GL_TRIANGLES, 0, usev );
+    }
+    if ( sectors[sectidx].gl_ceil_texture ) {
+      glBindVertexArray( sectors[sectidx].ceil_vao );
+
+      glActiveTexture( GL_TEXTURE0 );
+      glBindTexture( GL_TEXTURE_2D, sectors[sectidx].gl_ceil_texture );
+    }
     glDrawArrays( GL_TRIANGLES, 0, usev );
   }
 
