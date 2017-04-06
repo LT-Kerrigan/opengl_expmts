@@ -54,6 +54,22 @@ projects, and volatile software. Mostly OpenGL but some other graphics-related s
 | xxx     | glTF                | use latest official tools for glTF file load | proposed |
 | xxx     | widgets             | simple slider and text field widgets drop-in for demos | proposed |
 
+## LICENCE
+
+Some files in this repository may be from third-party libraries. It is the user's responsibility to determine and respect the licences of these files. All other files are licenced under the GNU General Public Licence:
+
+    This is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This software is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    For a copy of the GNU General Public License see <http://www.gnu.org/licenses/>.
+
 ## Notes
 
 * find more test 3D models at [Stanford Computer Graphics Laboratory](http://graphics.stanford.edu/data/3Dscanrep/)
