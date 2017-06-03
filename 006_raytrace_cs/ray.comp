@@ -4,6 +4,7 @@ First version 4 Sep 2014
  */
 #version 430
 #define RES 512.0
+#define FLT_MIN -99999.0
 
 // this is a 2d local wg layout.
 // global wg layout was 800x800 units, and subdivided so that each cs processes
@@ -12,6 +13,66 @@ layout (local_size_x = 1, local_size_y = 1) in;
 layout (rgba32f, binding = 0) uniform image2D img_output;
 
 uniform float time;
+
+//  line_a           b
+//  a-------------   |   ----->b
+//      .            |
+//         w  .      a
+//                 line_b
+//
+float dist_line_line( in vec3 line_a_point_a, in vec3 line_a_point_b,
+											in vec3 line_b_point_a, in vec3 line_b_point_b,
+											out float closest_point_on_b ) {
+	vec3 u = line_a_point_b - line_a_point_a; // this is just ray_d
+	vec3 v = line_b_point_b - line_b_point_a; // this is cylinder inner central line
+	vec3 w = line_a_point_a - line_b_point_a; // 'w' in diagram from lb_b to la_a
+	float a = dot( u, u );
+	float b = dot( u, v );
+	float c = dot( v, v );
+	float d = dot( u, w );
+	float e = dot( v, w );
+	float D = a * c - b * b; // determinant manually created i believe
+	float sc, tc; // closest points i believe
+
+	// comp line params of 2 closest points
+	if (D < 0.0000001) { // almost parallel lines
+		sc = 0.0;
+		tc = b > c ? d / b : e / c;	// use largest demoninator
+	} else {
+		sc = ( b * e - c * d ) / D;
+		tc = ( a * e - b * d ) / D;
+	}
+	// distance between two closest points
+	vec3 dist3d = w + (sc * u) - (tc * v);
+	closest_point_on_b = tc;
+	return length(dist3d);
+}
+
+/*
+float dist_line_line( in vec3 point_a, in vec3 dir_a, in vec3 point_b, in vec3 dir_b ) {
+	// note: dot() of a vector with itself is square of that vector's magnitude
+
+	vec3 dist3d = point_b - point_a;
+
+	// TODO review this
+	float len_a_sq = dot(dir_a, dir_a);
+	float len_b_sq = dot(dir_b, dir_b);
+	float dprod = dot(dir_a, dir_b);
+	float det = dprod * dprod - len_a_sq * len_b_sq;
+
+	if (det == 0.0) { // TODO check this
+		det = 1.0 / det;
+		float dpv1 = dot(dist3d, point_a);
+		float dpv2 = dot(dist3d, point_b);
+		float t1 = (dprod * dpv2 - len_b_sq * dpv1) * det;
+		float t2 = (len_a_sq * dpv2 - dprod * dpv1) * det;
+		return length( dist3d + dir_b * point_b - dir_a * point_a );
+	}
+	// lines are nearly parallel
+	vec3 a = cross( dist3d, point_a );
+	return sqrt( dot( a, a) / len_a_sq );
+}
+*/
 
 void main () {
 	vec4 texel = vec4 (0.0, 0.0, 0.0, 1.0);
@@ -126,6 +187,30 @@ void main () {
 			float spec_fac = pow (spec_dp, spec_exp);
 			texel.rgb += light_spec * plane_ks * spec_fac;
 		}
+	}
+	
+	{ // capsule  ( a|----|b )
+		vec3 point_a = vec3( -2.0, 0.0, -10.0 );
+		vec3 point_b = vec3(  2.0, 0.0, -10.0 );
+		float cap_r = 1.0;
+		// 1. find closest 3d point on segment compared to ray
+		// d = sqrt(  u*u - ((dot(u,v)*dot(u,v)) / v * v) )
+		// where v is direction of ray, u is mag of 
+
+		float point_on_cyl_line;
+		float dist = dist_line_line( ray_o, ray_o + ray_d * 100.0, point_a, point_b,
+			point_on_cyl_line );
+		if (dist < cap_r && point_on_cyl_line > 0.0 && point_on_cyl_line < 1.0 ){
+			float fac = 1.0 - dist;
+			fac = fac * 0.5 + 0.5;
+			//fac = point_on_cyl_line;
+			
+			// TODO also return the normal so can do lighting
+
+			texel.rgb = vec3 ( 0.9, 0.2, 0.2 ) * fac;
+		}		
+
+		// 2. do a sphere-ray calc with that point as sphere centre
 	}
 	
 	/* gamma correction */
