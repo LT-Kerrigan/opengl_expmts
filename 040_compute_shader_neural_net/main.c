@@ -84,7 +84,13 @@ void create_geometry() {
 // could probably encode this in fragment shader passes too?
 // then you wouldn't even need compute shaders...
 void create_shaders() {
+	parse_file_into_str( "ray.comp", shader_str, 100000 );
+	
+	
 	// create a buffer the size of the inputs
+	
+	
+	
 }
 
 void draw_frame() {
