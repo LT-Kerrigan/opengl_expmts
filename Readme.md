@@ -48,6 +48,7 @@ projects, and volatile software. Mostly OpenGL but some other graphics-related s
 | 038     | SPEW                | home-made GLEW replacement. not an acronym, just loud | working |
 | 039     | wad_render          | render geometry from a DOOM WAD file in OpenGL | progress |
 | 040     | compute_shader_neural_net | a neural network encoded in a compute shader | started |
+| 041     | node_terrain        | terrain that subdivides and can do LOD      |
 | xxx     | fresnel_prism       | refraction/reflection colour split as in nvidia cg_tutorial_chapter07 | proposed |
 | xxx     | wu_line             | wu's line drawing algorithm (pseudo on wiki)          | proposed  |
 | xxx     | two-point perspective | matrices for one/two/three point perspective drawing style | proposed |
