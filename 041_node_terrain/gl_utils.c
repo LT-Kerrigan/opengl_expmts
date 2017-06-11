@@ -84,11 +84,11 @@ bool start_opengl() {
   }
 
   // uncomment these lines if on Apple OS X
-  /*glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 2);
+  glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-*/
+
   /*GLFWmonitor* mon = glfwGetPrimaryMonitor ();
   const GLFWvidmode* vmode = glfwGetVideoMode (mon);
   g_window = glfwCreateWindow (
@@ -96,7 +96,7 @@ bool start_opengl() {
   );*/
   glfwWindowHint( GLFW_SAMPLES, 16 );
   g_window =
-    glfwCreateWindow( g_gl_width, g_gl_height, "Extended Init.", NULL, NULL );
+    glfwCreateWindow( g_gl_width, g_gl_height, "Terrain LOD Demo", NULL, NULL );
   if ( !g_window ) {
     fprintf( stderr, "ERROR: could not open window with GLFW3\n" );
     glfwTerminate();
@@ -130,7 +130,7 @@ void glfw_window_size_callback( GLFWwindow *window, int width, int height ) {
   /* update any perspective matrices used here */
 }
 
-void _update_fps_counter( GLFWwindow *window ) {
+void _update_fps_counter( GLFWwindow *window, int verts, int draws ) {
   static int frame_count;
   double current_seconds = glfwGetTime();
   double elapsed_seconds = current_seconds - previous_seconds;
@@ -138,7 +138,7 @@ void _update_fps_counter( GLFWwindow *window ) {
     previous_seconds = current_seconds;
     double fps = (double)frame_count / elapsed_seconds;
     char tmp[128];
-    sprintf( tmp, "opengl @ fps: %.2f", fps );
+    sprintf( tmp, "opengl @ fps: %.2f verts: %i draws: %i", fps, verts, draws );
     glfwSetWindowTitle( window, tmp );
     frame_count = 0;
   }

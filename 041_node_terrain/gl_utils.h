@@ -32,7 +32,7 @@ bool gl_log_err( const char *message, ... );
 bool start_opengl();
 void glfw_error_callback( int error, const char *description );
 void glfw_window_size_callback( GLFWwindow *window, int width, int height );
-void _update_fps_counter( GLFWwindow *window );
+void _update_fps_counter( GLFWwindow *window, int width, int height );
 /*-----------------------------------SHADERS----------------------------------*/
 bool parse_file_into_str( const char *file_name, char *shader_str, int max_len );
 void print_shader_info_log( GLuint shader_index );
