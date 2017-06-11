@@ -28,8 +28,11 @@
 #define NODES_ACROSS 8
 
 // max quality shown under this dist
-#define TERR_LOD0_DIST 100.0
-#define TERR_LOD1_DIST 200.0
+#define TERR_LOD0_DIST 150.0
+#define TERR_LOD1_DIST 250.0
+
+// if defined then add skirts of triangle to hide gaps between nodes of diff LODs
+#define TERR_SKIRTS
 
 typedef unsigned char byte;
 
@@ -49,48 +52,101 @@ terrain_t terrain;
 
 static void fill_buffer_lod( int lod_divisor,
   int fromx, int tox, int fromy, int toy,
-  const byte* hmap_data, float *buff ) {
-
+  const byte* hmap_data, vec3 *buff, int *nverts ) {
+  assert( hmap_data );
   assert( buff );
+  assert( nverts );
 
   int buff_idx = 0;
-  for (int y_idx = fromy; y_idx < toy; y_idx += lod_divisor ){
-    for (int x_idx = fromx; x_idx < tox; x_idx += lod_divisor ){
-      int tl_idx = MIN( y_idx, terrain.hmap_rows - 1) * terrain.hmap_cols + MIN( x_idx, terrain.hmap_cols - 1);
-      int tr_idx = MIN( y_idx, terrain.hmap_rows - 1) * terrain.hmap_cols + MIN( x_idx + lod_divisor, terrain.hmap_cols - 1);
-      int bl_idx = MIN( y_idx + lod_divisor, terrain.hmap_rows - 1) * terrain.hmap_cols + MIN( x_idx, terrain.hmap_cols - 1);
-      int br_idx = MIN( y_idx + lod_divisor, terrain.hmap_rows - 1) * terrain.hmap_cols +  MIN( x_idx + lod_divisor, terrain.hmap_cols - 1);
+  int x_ctr = 0, y_ctr = 0;
+  for (int y_idx = fromy; y_idx < toy; y_idx += lod_divisor, y_ctr++ ){
+    for (int x_idx = fromx; x_idx < tox; x_idx += lod_divisor, x_ctr++ ){
+      int tl_idx = MIN( y_idx, terrain.hmap_rows - 1) * terrain.hmap_cols +
+        MIN( x_idx, terrain.hmap_cols - 1);
+      int tr_idx = MIN( y_idx, terrain.hmap_rows - 1) * terrain.hmap_cols +
+        MIN( x_idx + lod_divisor, terrain.hmap_cols - 1);
+      int bl_idx = MIN( y_idx + lod_divisor, terrain.hmap_rows - 1) * terrain.hmap_cols +
+        MIN( x_idx, terrain.hmap_cols - 1);
+      int br_idx = MIN( y_idx + lod_divisor, terrain.hmap_rows - 1) * terrain.hmap_cols +
+        MIN( x_idx + lod_divisor, terrain.hmap_cols - 1);
 
-      vec3 tl_pt = (vec3){ x_idx * TERR_WIDTH_SCALE, hmap_data[tl_idx] * TERR_HEIGHT_SCALE, y_idx * TERR_WIDTH_SCALE };
-      vec3 tr_pt = (vec3){ (x_idx + lod_divisor) * TERR_WIDTH_SCALE, hmap_data[tr_idx] * TERR_HEIGHT_SCALE, y_idx * TERR_WIDTH_SCALE, };
-      vec3 bl_pt = (vec3){ x_idx * TERR_WIDTH_SCALE, hmap_data[bl_idx] * TERR_HEIGHT_SCALE, (y_idx+lod_divisor) * TERR_WIDTH_SCALE, };
-      vec3 br_pt = (vec3){ (x_idx + lod_divisor) * TERR_WIDTH_SCALE, hmap_data[br_idx] * TERR_HEIGHT_SCALE, (y_idx+lod_divisor) * TERR_WIDTH_SCALE };
+      vec3 tl_pt = (vec3){
+        x_idx * TERR_WIDTH_SCALE,
+        hmap_data[tl_idx] * TERR_HEIGHT_SCALE,
+        y_idx * TERR_WIDTH_SCALE };
+      vec3 tr_pt = (vec3){
+        (x_idx + lod_divisor) * TERR_WIDTH_SCALE,
+        hmap_data[tr_idx] * TERR_HEIGHT_SCALE,
+        y_idx * TERR_WIDTH_SCALE, };
+      vec3 bl_pt = (vec3){
+        x_idx * TERR_WIDTH_SCALE,
+        hmap_data[bl_idx] * TERR_HEIGHT_SCALE,
+        (y_idx+lod_divisor) * TERR_WIDTH_SCALE, };
+      vec3 br_pt = (vec3){
+        (x_idx + lod_divisor) * TERR_WIDTH_SCALE,
+        hmap_data[br_idx] * TERR_HEIGHT_SCALE,
+        (y_idx+lod_divisor) * TERR_WIDTH_SCALE };
 
-      buff[buff_idx++] = tl_pt.x;
-      buff[buff_idx++] = tl_pt.y;
-      buff[buff_idx++] = tl_pt.z;
+      // (reverse triangles diagonal on every second square) 
+      if (( y_ctr + x_ctr ) % 2 == 0 ) {
+        buff[buff_idx++] = tl_pt;
+        buff[buff_idx++] = bl_pt;
+        buff[buff_idx++] = br_pt;
+        buff[buff_idx++] = br_pt;
+        buff[buff_idx++] = tr_pt;
+        buff[buff_idx++] = tl_pt;
+      } else {
+        buff[buff_idx++] = tl_pt;
+        buff[buff_idx++] = bl_pt;
+        buff[buff_idx++] = tr_pt;
+        buff[buff_idx++] = tr_pt;
+        buff[buff_idx++] = bl_pt;
+        buff[buff_idx++] = br_pt;
+      } // endif
 
-      buff[buff_idx++] = bl_pt.x;
-      buff[buff_idx++] = bl_pt.y;
-      buff[buff_idx++] = bl_pt.z;
+#ifdef TERR_SKIRTS
+      const float skirt_length = 30.0f;
+      // top row
+     if (y_idx == fromy) {
+        buff[buff_idx++] = tr_pt;
+        buff[buff_idx++] = (vec3){.x=tr_pt.x, .y=tr_pt.y-skirt_length, .z=tr_pt.z};
+        buff[buff_idx++] = (vec3){.x=tl_pt.x, .y=tl_pt.y-skirt_length, .z=tl_pt.z};
+        buff[buff_idx++] = (vec3){.x=tl_pt.x, .y=tl_pt.y-skirt_length, .z=tl_pt.z};
+        buff[buff_idx++] = tl_pt;
+        buff[buff_idx++] = tr_pt;
+      }
+      // left col
+      if (x_idx == fromx) {
+        buff[buff_idx++] = tl_pt;
+        buff[buff_idx++] = (vec3){.x=tl_pt.x, .y=tl_pt.y-skirt_length, .z=tl_pt.z};
+        buff[buff_idx++] = (vec3){.x=bl_pt.x, .y=bl_pt.y-skirt_length, .z=bl_pt.z};
+        buff[buff_idx++] = (vec3){.x=bl_pt.x, .y=bl_pt.y-skirt_length, .z=bl_pt.z};
+        buff[buff_idx++] = bl_pt;
+        buff[buff_idx++] = tl_pt;
+      }
+      // bottom row
+      if ((y_idx + lod_divisor) >= toy) {
+        buff[buff_idx++] = bl_pt;
+        buff[buff_idx++] = (vec3){.x=bl_pt.x, .y=bl_pt.y-skirt_length, .z=bl_pt.z};
+        buff[buff_idx++] = (vec3){.x=br_pt.x, .y=br_pt.y-skirt_length, .z=br_pt.z};
+        buff[buff_idx++] = (vec3){.x=br_pt.x, .y=br_pt.y-skirt_length, .z=br_pt.z};
+        buff[buff_idx++] = br_pt;
+        buff[buff_idx++] = bl_pt;
+      }
+      // right col
+      if ((x_idx + lod_divisor) >= tox) {
+        buff[buff_idx++] = br_pt;
+        buff[buff_idx++] = (vec3){.x=br_pt.x, .y=br_pt.y-skirt_length, .z=br_pt.z};
+        buff[buff_idx++] = (vec3){.x=tr_pt.x, .y=tr_pt.y-skirt_length, .z=tr_pt.z};
+        buff[buff_idx++] = (vec3){.x=tr_pt.x, .y=tr_pt.y-skirt_length, .z=tr_pt.z};
+        buff[buff_idx++] = tr_pt;
+        buff[buff_idx++] = br_pt;
+      }
+#endif
 
-      buff[buff_idx++] = br_pt.x;
-      buff[buff_idx++] = br_pt.y;
-      buff[buff_idx++] = br_pt.z;
-      
-      buff[buff_idx++] = br_pt.x;
-      buff[buff_idx++] = br_pt.y;
-      buff[buff_idx++] = br_pt.z;
-
-      buff[buff_idx++] = tr_pt.x;
-      buff[buff_idx++] = tr_pt.y;
-      buff[buff_idx++] = tr_pt.z;
-
-      buff[buff_idx++] = tl_pt.x;
-      buff[buff_idx++] = tl_pt.y;
-      buff[buff_idx++] = tl_pt.z;
-    }
+    } // endfor
   } //endfors
+  *nverts = buff_idx;
 }
 
 // note: [ ][ ][ ][ ] is 4x4 pixels with 3 squares (6 tris) in-between
@@ -105,8 +161,7 @@ terrain_node_t create_terrain_node( const byte *data, int fromx, int tox, int fr
 	terrain_node_t tn;
 	tn.mid_point = (vec2){
     0.5f * (float)(tox + fromx) * TERR_WIDTH_SCALE,
-    0.5f * (float)(toy + fromy) * TERR_WIDTH_SCALE,
-  };
+    0.5f * (float)(toy + fromy) * TERR_WIDTH_SCALE };
 
 	int tl_idx = fromy * terrain.hmap_cols + fromx;
 	int tr_idx = fromy * terrain.hmap_cols + tox;
@@ -115,17 +170,23 @@ terrain_node_t create_terrain_node( const byte *data, int fromx, int tox, int fr
 
   { // min LOD version (far away)
     int lod_divisor = 16;
-    int nsquares = (terrain.hmap_cols / NODES_ACROSS) / lod_divisor;
-    nsquares *= nsquares;
+    int ncols = (terrain.hmap_cols / NODES_ACROSS) / lod_divisor;
+    int nsquares = ncols * ncols;
     int nverts = nsquares * 6;
-    float *buff = (float*)malloc( 3 * sizeof( GLfloat ) * nverts );
-    fill_buffer_lod( lod_divisor, fromx, tox, fromy, toy, data, buff );
-    tn.min_lod_npoints = nverts;
-    
+    size_t sz = sizeof( vec3 ) * nverts;
+#ifdef TERR_SKIRTS
+    int nskirt_tris = ncols * 2 * 4; // 4 sides
+    int nskirt_verts = nskirt_tris * 6;
+    sz += (nskirt_verts * sizeof( vec3 ));
+#endif
+    vec3 *buff = (vec3*)malloc( sz );
+    int naddedverts = 0;
+    fill_buffer_lod( lod_divisor, fromx, tox, fromy, toy, data, buff, &tn.min_lod_npoints );
+
     GLuint min_lod_vbo = 0;
     glGenBuffers( 1, &min_lod_vbo );
     glBindBuffer( GL_ARRAY_BUFFER, min_lod_vbo );
-    glBufferData( GL_ARRAY_BUFFER, 3 * sizeof( GLfloat ) * nverts, buff, GL_STATIC_DRAW );
+    glBufferData( GL_ARRAY_BUFFER, 3 * sizeof( GLfloat ) * tn.min_lod_npoints, buff, GL_STATIC_DRAW );
     glGenVertexArrays( 1, &tn.min_lod_vao );
     glBindVertexArray( tn.min_lod_vao );
     glEnableVertexAttribArray( 0 );
@@ -134,17 +195,22 @@ terrain_node_t create_terrain_node( const byte *data, int fromx, int tox, int fr
   }
   { // mid LOD version
     int lod_divisor = 4;
-    int nsquares = (terrain.hmap_cols / NODES_ACROSS) / lod_divisor;
-    nsquares *= nsquares;
+    int ncols = (terrain.hmap_cols / NODES_ACROSS) / lod_divisor;
+    int nsquares = ncols * ncols;
     int nverts = nsquares * 6;
-    float *buff = (float*)malloc( 3 * sizeof( GLfloat ) * nverts );
-    fill_buffer_lod( lod_divisor, fromx, tox, fromy, toy, data, buff );
-    tn.mid_lod_npoints = nverts;
+    size_t sz = sizeof( vec3 ) * nverts;
+#ifdef TERR_SKIRTS
+    int nskirt_tris = ncols * 2 * 4; // 4 sides
+    int nskirt_verts = nskirt_tris * 6;
+    sz += (nskirt_verts * sizeof( vec3 ));
+#endif
+    vec3 *buff = (vec3*)malloc( sz );
+    fill_buffer_lod( lod_divisor, fromx, tox, fromy, toy, data, buff, &tn.mid_lod_npoints );
 
     GLuint mid_lod_vbo = 0;
     glGenBuffers( 1, &mid_lod_vbo );
     glBindBuffer( GL_ARRAY_BUFFER, mid_lod_vbo );
-    glBufferData( GL_ARRAY_BUFFER, 3 * sizeof( GLfloat ) * nverts, buff, GL_STATIC_DRAW );
+    glBufferData( GL_ARRAY_BUFFER, 3 * sizeof( GLfloat ) * tn.mid_lod_npoints, buff, GL_STATIC_DRAW );
     glGenVertexArrays( 1, &tn.mid_lod_vao );
     glBindVertexArray( tn.mid_lod_vao );
     glEnableVertexAttribArray( 0 );
@@ -153,17 +219,22 @@ terrain_node_t create_terrain_node( const byte *data, int fromx, int tox, int fr
   }
   { // max LOD version
     int lod_divisor = 1;
-    int nsquares = (terrain.hmap_cols / NODES_ACROSS) / lod_divisor;
-    nsquares *= nsquares;
+    int ncols = (terrain.hmap_cols / NODES_ACROSS) / lod_divisor;
+    int nsquares = ncols * ncols;
     int nverts = nsquares * 6;
-    float *buff = (float*)malloc( 3 * sizeof( GLfloat ) * nverts );
-    fill_buffer_lod( lod_divisor, fromx, tox, fromy, toy, data, buff );
-    tn.max_lod_npoints = nverts;
+    size_t sz = sizeof( vec3 ) * nverts;
+#ifdef TERR_SKIRTS
+    int nskirt_tris = ncols * 2 * 4; // 4 sides
+    int nskirt_verts = nskirt_tris * 6;
+    sz += (nskirt_verts * sizeof( vec3 ));
+#endif
+    vec3 *buff = (vec3*)malloc( sz );
+    fill_buffer_lod( lod_divisor, fromx, tox, fromy, toy, data, buff, &tn.max_lod_npoints );
 
     GLuint max_lod_vbo = 0;
     glGenBuffers( 1, &max_lod_vbo );
     glBindBuffer( GL_ARRAY_BUFFER, max_lod_vbo );
-    glBufferData( GL_ARRAY_BUFFER, 3 * sizeof( GLfloat ) * nverts, buff, GL_STATIC_DRAW );
+    glBufferData( GL_ARRAY_BUFFER, 3 * sizeof( GLfloat ) * tn.max_lod_npoints, buff, GL_STATIC_DRAW );
     glGenVertexArrays( 1, &tn.max_lod_vao );
     glBindVertexArray( tn.max_lod_vao );
     glEnableVertexAttribArray( 0 );
