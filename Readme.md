@@ -55,6 +55,7 @@ projects, and volatile software. Mostly OpenGL but some other graphics-related s
 | xxx     | 3ds parse           | a 3ds binary format loader           | proposed |
 | xxx     | glTF                | use latest official tools for glTF file load | proposed |
 | xxx     | widgets             | simple slider and text field widgets drop-in for demos | proposed |
+| xxx     | stencil buffer      | render outlines like in Lindsay Kay's CAD renderer |
 
 ## LICENCE
 
